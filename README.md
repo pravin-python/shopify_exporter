@@ -87,6 +87,18 @@ Or you can simply run the Python entry point:
 python run.py
 ```
 
+Or run the server using `waitress`:
+
+```bash
+waitress-serve --port=8080 run:app
+```
+
+Or run the python script directly:
+
+```bash
+python wsgi.py
+```
+
 The server will start on port 5000. Open your browser and navigate to:
 **[http://127.0.0.1:5000/](http://127.0.0.1:5000/)**
 

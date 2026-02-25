@@ -16,11 +16,12 @@ def export_orders_to_csv(query_results):
     # Using explicit mapping to easily map to CSV
     for order, item in query_results:
         row = {
-            "Shopify Order ID": order.shopify_order_id,
+            "Shopify Order ID": str(order.shopify_order_id.split('/')[-1]) if order.shopify_order_id else "",
             "Order Name": order.order_name,
             "Order Created": order.created_at.strftime("%Y-%m-%d %H:%M:%S") if order.created_at else "",
             "SKU": item.sku,
             "Quantity": item.quantity,
+            "Fulfilled At": item.fulfilled_at.strftime("%Y-%m-%d %H:%M:%S") if item.fulfilled_at else "",
             "Tracking Number": item.tracking_number,
             "Delivery Status": item.delivery_status,
             "Delivered At": item.delivered_at.strftime("%Y-%m-%d %H:%M:%S") if item.delivered_at else ""

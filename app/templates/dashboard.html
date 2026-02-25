@@ -137,7 +137,8 @@
                                 <th>Order Name</th>
                                 <th>SKU</th>
                                 <th>Quantity</th>
-                                <th>Created At</th>
+                                <th>Order Created At</th>
+                                <th>Fulfilled At</th>
                                 <th>Tracking #</th>
                                 <th>Delivery Status</th>
                                 <th>Delivered At</th>
@@ -249,6 +250,10 @@ $(document).ready(function() {
             { data: 'sku', render: function(data) { return '<span class="badge bg-secondary">' + data + '</span>'; } },
             { data: 'quantity' },
             { data: 'created_at' },
+            { 
+                data: 'fulfilled_at', 
+                render: function(data) { return data || '-'; }
+            },
             { 
                 data: 'tracking_number', 
                 render: function(data) { 

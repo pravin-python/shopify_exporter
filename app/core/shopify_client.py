@@ -92,6 +92,14 @@ class ShopifyClient:
                         url
                         company
                       }}
+                      events(first: 10) {{
+                        edges {{
+                            node {{
+                                status
+                                happenedAt
+                            }}
+                        }}
+                      }}
                     }}
                   }}
                 }}
@@ -113,16 +121,15 @@ class ShopifyClient:
                 raise Exception(f"Shopify API Error: {response.text}")
 
             data = response.json()
+            print(data)
             orders = data["data"]["orders"]["edges"]
 
             for edge in orders:
                 order = edge["node"]
-                fulfillment = []
+                fulfillments_data = []
                 items = []
-                for fulfillment in order.get("fulfillments", []):
-                    for tracking in fulfillment.get("trackingInfo", []):
-                        if tracking.get("number"):
-                            fulfillment.append(fulfillment)
+                for f in (order.get("fulfillments") or []):
+                    fulfillments_data.append(f)
                 
                 for item in order.get("lineItems", {}).get("edges", []):
                     items.append(item["node"])
@@ -132,7 +139,7 @@ class ShopifyClient:
                     "order_id": order["id"],
                     "order_name": order["name"],
                     "order_created_at": order["createdAt"],
-                    "fulfillment": fulfillment,
+                    "fulfillment": fulfillments_data,
                     "items": items,
                 })
 

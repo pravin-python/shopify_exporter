@@ -7,4 +7,5 @@ def init_db():
     import app.models.order_item
     import app.models.shop
     
+    db.drop_all()
     db.create_all()

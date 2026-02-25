@@ -63,15 +63,18 @@ def sync_delivery():
     ).all()
     
     updated_count = 0
+    tracking_numbers = []
     for item in pending_items:
-        # Mocking check
-        result = client.check_delivery_status(item.tracking_number)
-        
-        item.delivery_status = result['status']
-        if result['delivered_at']:
-            item.delivered_at = result['delivered_at']
-        
-        updated_count += 1
+        tracking_numbers.append(item.tracking_number)
+    
+    result = client.get_bulk_delivery_status(tracking_numbers)  
+    
+    for item in pending_items:
+        for result_item in result:
+            if item.tracking_number == result_item['tracking_number']:
+                item.delivery_status = result_item['status']
+                item.delivered_at = result_item['delivered_at']
+                updated_count += 1
         
     db.session.commit()
     return jsonify({"success": True, "message": f"Updated {updated_count} delivery statuses.", "count": updated_count})

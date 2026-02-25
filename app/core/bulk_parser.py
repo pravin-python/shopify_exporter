@@ -67,28 +67,46 @@ def parse_and_store_bulk_data(orders_data):
         db.session.flush()  # Get the DB-generated id
 
         # ----- Tracking numbers from fulfillments -----
-        tracking_numbers = []
+        fulfillments_mapped = []
         for fulfillment in order_data.get('fulfillment', []):
             if isinstance(fulfillment, dict):
+                created_at_str = fulfillment.get('createdAt', '')
+                fulfilled_at = None
+                if created_at_str:
+                    try:
+                        fulfilled_at = datetime.fromisoformat(
+                            created_at_str.replace('Z', '+00:00')
+                        ).replace(tzinfo=None)
+                    except (ValueError, AttributeError):
+                        pass
+
                 for tracking in fulfillment.get('trackingInfo', []):
                     tn = tracking.get('number', '')
                     if tn:
-                        tracking_numbers.append(tn)
+                        fulfillments_mapped.append({
+                            'tracking_number': tn,
+                            'tracking_url': tracking.get('url'),
+                            'tracking_company': tracking.get('company'),
+                            'fulfilled_at': fulfilled_at
+                        })
 
         # ----- Create Line Items -----
         items = order_data.get('items', [])
         for idx, item_data in enumerate(items):
             sku = item_data.get('sku') or item_data.get('title', 'UNKNOWN')
 
-            tracking_number = None
-            if tracking_numbers:
-                tracking_number = tracking_numbers[idx] if idx < len(tracking_numbers) else tracking_numbers[0]
+            tracking_info = {}
+            if fulfillments_mapped:
+                tracking_info = fulfillments_mapped[idx] if idx < len(fulfillments_mapped) else fulfillments_mapped[0]
 
             order_item = OrderItem(
                 order_id=order.id,
                 sku=sku,
                 quantity=item_data.get('quantity', 1),
-                tracking_number=tracking_number,
+                tracking_number=tracking_info.get('tracking_number'),
+                tracking_url=tracking_info.get('tracking_url'),
+                tracking_company=tracking_info.get('tracking_company'),
+                fulfilled_at=tracking_info.get('fulfilled_at'),
             )
             db.session.add(order_item)
 

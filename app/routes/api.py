@@ -38,16 +38,16 @@ def get_orders():
     end_date = request.args.get('end_date', '').strip()
     sku_filter = request.args.get('sku', '').strip()
 
-    # Column mapping for sorting (matches DataTable column order, skip checkbox col 0)
     sortable_columns = {
         1: Order.shopify_order_id,
         2: Order.order_name,
         3: OrderItem.sku,
         4: OrderItem.quantity,
         5: Order.created_at,
-        6: OrderItem.tracking_number,
-        7: OrderItem.delivery_status,
-        8: OrderItem.delivered_at,
+        6: OrderItem.fulfilled_at,
+        7: OrderItem.tracking_number,
+        8: OrderItem.delivery_status,
+        9: OrderItem.delivered_at,
     }
 
     # Base query
@@ -114,6 +114,7 @@ def get_orders():
             'sku': item.sku or '',
             'quantity': item.quantity or 0,
             'created_at': order.created_at.strftime('%Y-%m-%d %H:%M') if order.created_at else '',
+            'fulfilled_at': item.fulfilled_at.strftime('%Y-%m-%d %H:%M') if item.fulfilled_at else '',
             'tracking_number': item.tracking_number or '',
             'delivery_status': item.delivery_status or 'Pending',
             'delivered_at': item.delivered_at.strftime('%Y-%m-%d %H:%M') if item.delivered_at else '',
