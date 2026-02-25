@@ -3,6 +3,7 @@
 {% block title %}Dashboard - Shopify Exporter{% endblock %}
 
 {% block content %}
+<!-- Filters & Actions Card -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card shadow-sm border-0">
@@ -19,43 +20,119 @@
                     </div>
                 </div>
                 
-                <form id="filterForm" method="GET" action="{{ url_for('dashboard.index') }}" class="row g-3">
+                <div class="row g-3">
                     <div class="col-md-3">
                         <label for="start_date" class="form-label">Start Date</label>
-                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+                        <input type="date" class="form-control" id="start_date">
                     </div>
                     <div class="col-md-3">
                         <label for="end_date" class="form-label">End Date</label>
-                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+                        <input type="date" class="form-control" id="end_date">
                     </div>
                     <div class="col-md-4">
                         <label for="sku" class="form-label">SKU (comma separated)</label>
-                        <input type="text" class="form-control" id="sku" name="sku" placeholder="e.g. SKU-123, SKU-456" value="{{ sku_filter }}">
+                        <input type="text" class="form-control" id="sku" placeholder="e.g. SKU-123, SKU-456">
                     </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100 me-2"><i class="fas fa-filter"></i> Filter</button>
-                        <a href="{{ url_for('dashboard.index') }}" class="btn btn-secondary"><i class="fas fa-times"></i></a>
+                    <div class="col-md-2 d-flex align-items-end gap-2">
+                        <button type="button" id="btnApplyFilter" class="btn btn-primary w-100">
+                            <i class="fas fa-filter"></i> Filter
+                        </button>
+                        <button type="button" id="btnClearFilter" class="btn btn-secondary">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Sync Orders Modal (Date Range Picker) -->
+<div class="modal fade" id="syncOrdersModal" tabindex="-1" aria-labelledby="syncOrdersModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="syncOrdersModalLabel">
+                    <i class="fas fa-sync-alt me-2"></i>Sync Orders from Shopify
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    Select a date range to sync orders. Leave blank to sync all orders (default: last 250 days).
+                </p>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="sync_start_date" class="form-label">Start Date <span class="text-muted">(optional)</span></label>
+                        <input type="date" class="form-control" id="sync_start_date">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="sync_end_date" class="form-label">End Date <span class="text-muted">(optional)</span></label>
+                        <input type="date" class="form-control" id="sync_end_date">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btnConfirmSync">
+                    <i class="fas fa-sync-alt me-1"></i> Start Sync
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Selection Toolbar (hidden until items selected) -->
+<div class="row mb-3" id="selectionToolbar" style="display: none;">
+    <div class="col-12">
+        <div class="selection-bar d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-check-circle me-2"></i>
+                <span id="selectedCount">0</span> item(s) selected
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-sm btn-success" id="btnExportSelected">
+                    <i class="fas fa-file-csv me-1"></i> Export Selected
+                </button>
+                <button class="btn btn-sm btn-outline-light" id="btnClearSelection">
+                    <i class="fas fa-times me-1"></i> Clear Selection
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DataTable Card -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card shadow-sm border-0">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h6 class="m-0 font-weight-bold text-dark">Order Items List</h6>
-                <a href="{{ url_for('export.export_csv', start_date=start_date, end_date=end_date, sku=sku_filter) }}" class="btn btn-success btn-sm">
-                    <i class="fas fa-file-csv me-1"></i> Export CSV
-                </a>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="selectAllDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-check-double me-1"></i> Select All
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="selectAllDropdown">
+                            <li><a class="dropdown-item" href="#" id="selectCurrentPage"><i class="fas fa-file me-2"></i>Current Page</a></li>
+                            <li><a class="dropdown-item" href="#" id="selectAllPages"><i class="fas fa-layer-group me-2"></i>All Pages</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" id="deselectAll"><i class="fas fa-times me-2"></i>Deselect All</a></li>
+                        </ul>
+                    </div>
+                    <a href="{{ url_for('export.export_csv') }}" class="btn btn-outline-success btn-sm" id="btnExportAll">
+                        <i class="fas fa-file-csv me-1"></i> Export All
+                    </a>
+                </div>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped mb-0 align-middle">
+                    <table id="ordersTable" class="table table-hover table-striped mb-0 align-middle w-100">
                         <thead class="table-light">
                             <tr>
+                                <th class="dt-checkbox-col">
+                                    <input class="form-check-input" type="checkbox" id="selectPageCheckbox" title="Select current page">
+                                </th>
                                 <th>Order ID</th>
                                 <th>Order Name</th>
                                 <th>SKU</th>
@@ -67,77 +144,11 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for order, item in pagination.items %}
-                            <tr>
-                                <td><small class="text-muted">{{ order.shopify_order_id.split('/')[-1] }}</small></td>
-                                <td><strong>{{ order.order_name }}</strong></td>
-                                <td><span class="badge bg-secondary">{{ item.sku }}</span></td>
-                                <td>{{ item.quantity }}</td>
-                                <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                                <td>
-                                    {% if item.tracking_number %}
-                                        <code>{{ item.tracking_number }}</code>
-                                    {% else %}
-                                        <span class="text-muted fst-italic">None</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if item.delivery_status == 'Delivered' %}
-                                        <span class="badge bg-success">Delivered</span>
-                                    {% elif item.delivery_status == 'In-Transit' %}
-                                        <span class="badge bg-info text-dark">In-Transit</span>
-                                    {% else %}
-                                        <span class="badge bg-warning text-dark">Pending</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if item.delivered_at %}
-                                        {{ item.delivered_at.strftime('%Y-%m-%d %H:%M') }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="8" class="text-center py-4 text-muted">No records found matching your criteria.</td>
-                            </tr>
-                            {% endfor %}
+                            <!-- DataTables will populate this via AJAX -->
                         </tbody>
                     </table>
                 </div>
             </div>
-            
-            <!-- Pagination Footer -->
-            {% if pagination.pages > 1 %}
-            <div class="card-footer bg-white py-3">
-                <nav aria-label="Page navigation">
-                    <ul class="pagination pagination-sm justify-content-end mb-0">
-                        <!-- Prev -->
-                        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-                            <a class="page-link" href="{{ url_for('dashboard.index', page=pagination.prev_num, start_date=start_date, end_date=end_date, sku=sku_filter) }}" tabindex="-1">Previous</a>
-                        </li>
-                        
-                        <!-- Page numbers -->
-                        {% for p in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
-                            {% if p %}
-                                <li class="page-item {% if p == pagination.page %}active{% endif %}">
-                                    <a class="page-link" href="{{ url_for('dashboard.index', page=p, start_date=start_date, end_date=end_date, sku=sku_filter) }}">{{ p }}</a>
-                                </li>
-                            {% else %}
-                                <li class="page-item disabled"><span class="page-link">...</span></li>
-                            {% endif %}
-                        {% endfor %}
-                        
-                        <!-- Next -->
-                        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-                            <a class="page-link" href="{{ url_for('dashboard.index', page=pagination.next_num, start_date=start_date, end_date=end_date, sku=sku_filter) }}">Next</a>
-                        </li>
-                    </ul>
-                </nav>
-            </div>
-            {% endif %}
-            
         </div>
     </div>
 </div>
@@ -145,88 +156,401 @@
 
 {% block extra_js %}
 <script>
-    // Utility for toasts
-    function showToast(message, type='success') {
-        const toastHtml = `
-            <div class="toast align-items-center text-white bg-${type} border-0 show" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body">
-                        ${message}
-                    </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-            </div>
-        `;
-        const container = document.getElementById('toast-wrapper');
-        container.insertAdjacentHTML('beforeend', toastHtml);
-        
-        const toastElements = container.querySelectorAll('.toast');
-        const latestToast = toastElements[toastElements.length - 1];
-        if (latestToast) {
-            // we manually trigger BS toast behaviour or just rely on our CSS timeout.
-            setTimeout(() => {
-                latestToast.classList.remove('show');
-                setTimeout(() => latestToast.remove(), 500);
-            }, 3000);
+$(document).ready(function() {
+
+    // =========================================================================
+    // GLOBAL SELECTION STATE — persists across page changes
+    // =========================================================================
+    let selectedIds = [];
+
+    function isSelected(id) {
+        return selectedIds.indexOf(id) !== -1;
+    }
+
+    function addSelection(id) {
+        if (!isSelected(id)) {
+            selectedIds.push(id);
         }
     }
 
-    // Sync Orders API call
-    document.getElementById('btnSyncOrders').addEventListener('click', function() {
-        const btn = this;
-        // visual state update
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Syncing...';
-        btn.disabled = true;
+    function removeSelection(id) {
+        selectedIds = selectedIds.filter(function(v) { return v !== id; });
+    }
 
-        fetch('{{ url_for("sync.sync_orders") }}', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'}
-        })
-        .then(response => response.json())
-        .then(data => {
-            showToast(data.message, data.success ? 'success' : 'danger');
-            if (data.success) {
-                setTimeout(() => window.location.reload(), 1500);
-            } else {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+    function clearSelection() {
+        selectedIds = [];
+        updateSelectionUI();
+        restoreCheckboxState();
+    }
+
+    function updateSelectionUI() {
+        var count = selectedIds.length;
+        $('#selectedCount').text(count);
+        if (count > 0) {
+            $('#selectionToolbar').slideDown(200);
+        } else {
+            $('#selectionToolbar').slideUp(200);
+        }
+    }
+
+    // =========================================================================
+    // TOAST UTILITY
+    // =========================================================================
+    function showToast(message, type) {
+        type = type || 'success';
+        var toastHtml = 
+            '<div class="toast align-items-center text-white bg-' + type + ' border-0 show" role="alert">' +
+                '<div class="d-flex">' +
+                    '<div class="toast-body">' + message + '</div>' +
+                    '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>' +
+                '</div>' +
+            '</div>';
+        var $container = $('#toast-wrapper');
+        $container.append(toastHtml);
+        var $latest = $container.find('.toast').last();
+        setTimeout(function() {
+            $latest.fadeOut(400, function() { $(this).remove(); });
+        }, 3000);
+    }
+
+    // =========================================================================
+    // DATATABLE INITIALIZATION (Server-Side Processing)
+    // =========================================================================
+    var table = $('#ordersTable').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: '{{ url_for("api.get_orders") }}',
+            type: 'GET',
+            data: function(d) {
+                // Pass custom filter params alongside DataTables params
+                d.start_date = $('#start_date').val() || '';
+                d.end_date = $('#end_date').val() || '';
+                d.sku = $('#sku').val() || '';
+            },
+            error: function(xhr, error, thrown) {
+                showToast('Failed to load data: ' + thrown, 'danger');
             }
-        })
-        .catch(err => {
-            showToast('An error occurred during sync.', 'danger');
-            btn.innerHTML = originalText;
-            btn.disabled = false;
+        },
+        columns: [
+            {
+                // Checkbox column
+                data: 'item_id',
+                orderable: false,
+                searchable: false,
+                className: 'dt-checkbox-col',
+                render: function(data) {
+                    var checked = isSelected(data) ? ' checked' : '';
+                    return '<input class="form-check-input row-checkbox" type="checkbox" value="' + data + '"' + checked + '>';
+                }
+            },
+            { data: 'order_id', render: function(data) { return '<small class="text-muted">' + data + '</small>'; } },
+            { data: 'order_name', render: function(data) { return '<strong>' + data + '</strong>'; } },
+            { data: 'sku', render: function(data) { return '<span class="badge bg-secondary">' + data + '</span>'; } },
+            { data: 'quantity' },
+            { data: 'created_at' },
+            { 
+                data: 'tracking_number', 
+                render: function(data) { 
+                    return data ? '<code>' + data + '</code>' : '<span class="text-muted fst-italic">None</span>'; 
+                }
+            },
+            { 
+                data: 'delivery_status', 
+                render: function(data) {
+                    if (data === 'Delivered') return '<span class="badge bg-success">Delivered</span>';
+                    if (data === 'In-Transit') return '<span class="badge bg-info text-dark">In-Transit</span>';
+                    return '<span class="badge bg-warning text-dark">Pending</span>';
+                }
+            },
+            { 
+                data: 'delivered_at', 
+                render: function(data) { return data || '-'; }
+            }
+        ],
+        order: [[5, 'desc']],  // Default sort by Created At desc
+        pageLength: 20,
+        lengthMenu: [[10, 20, 30, 40, 50], [10, 20, 30, 40, 50]],
+        language: {
+            processing: '<div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div> Loading...',
+            emptyTable: 'No records found matching your criteria.',
+            info: 'Showing _START_ to _END_ of _TOTAL_ entries',
+            lengthMenu: '_MENU_ entries per page',
+        },
+        dom: '<"row align-items-center"<"col-sm-6"l><"col-sm-6"f>>rt<"row align-items-center mt-3"<"col-sm-5"i><"col-sm-7"p>>',
+        drawCallback: function(settings) {
+            // Restore checkbox state after each draw (page change, sort, etc.)
+            restoreCheckboxState();
+
+            // Hide pagination if only 1 page
+            var api = this.api();
+            var pageInfo = api.page.info();
+            var $paginationWrapper = $(api.table().container()).find('.dataTables_paginate');
+            if (pageInfo.pages <= 1) {
+                $paginationWrapper.hide();
+            } else {
+                $paginationWrapper.show();
+            }
+        }
+    });
+
+    // =========================================================================
+    // RESTORE CHECKBOXES AFTER PAGE CHANGE
+    // =========================================================================
+    function restoreCheckboxState() {
+        // Check each visible row's checkbox if it's in selectedIds
+        $('#ordersTable tbody .row-checkbox').each(function() {
+            var id = parseInt($(this).val());
+            $(this).prop('checked', isSelected(id));
+        });
+        // Update the "Select Page" header checkbox
+        updatePageCheckbox();
+    }
+
+    function updatePageCheckbox() {
+        var $visible = $('#ordersTable tbody .row-checkbox');
+        var total = $visible.length;
+        var checked = $visible.filter(':checked').length;
+
+        if (total === 0) {
+            $('#selectPageCheckbox').prop({ checked: false, indeterminate: false });
+        } else if (checked === total) {
+            $('#selectPageCheckbox').prop({ checked: true, indeterminate: false });
+        } else if (checked > 0) {
+            $('#selectPageCheckbox').prop({ checked: false, indeterminate: true });
+        } else {
+            $('#selectPageCheckbox').prop({ checked: false, indeterminate: false });
+        }
+    }
+
+    // =========================================================================
+    // ROW CHECKBOX CLICK — add/remove from global array
+    // =========================================================================
+    $('#ordersTable tbody').on('change', '.row-checkbox', function() {
+        var id = parseInt($(this).val());
+        if ($(this).is(':checked')) {
+            addSelection(id);
+        } else {
+            removeSelection(id);
+        }
+        updatePageCheckbox();
+        updateSelectionUI();
+    });
+
+    // =========================================================================
+    // HEADER CHECKBOX — toggle all visible rows on current page
+    // =========================================================================
+    $('#selectPageCheckbox').on('change', function() {
+        var isChecked = $(this).is(':checked');
+        $('#ordersTable tbody .row-checkbox').each(function() {
+            var id = parseInt($(this).val());
+            $(this).prop('checked', isChecked);
+            if (isChecked) {
+                addSelection(id);
+            } else {
+                removeSelection(id);
+            }
+        });
+        updateSelectionUI();
+    });
+
+    // =========================================================================
+    // SELECT ALL DROPDOWN ACTIONS
+    // =========================================================================
+
+    // Select Current Page
+    $('#selectCurrentPage').on('click', function(e) {
+        e.preventDefault();
+        $('#ordersTable tbody .row-checkbox').each(function() {
+            var id = parseInt($(this).val());
+            $(this).prop('checked', true);
+            addSelection(id);
+        });
+        updatePageCheckbox();
+        updateSelectionUI();
+    });
+
+    // Select All Pages (AJAX call to get all matching IDs)
+    $('#selectAllPages').on('click', function(e) {
+        e.preventDefault();
+        var $btn = $(this);
+        $btn.html('<span class="spinner-border spinner-border-sm me-1"></span> Loading...');
+
+        $.ajax({
+            url: '{{ url_for("api.get_all_matching_ids") }}',
+            type: 'GET',
+            data: {
+                start_date: $('#start_date').val() || '',
+                end_date: $('#end_date').val() || '',
+                sku: $('#sku').val() || '',
+                search: table.search() || ''
+            },
+            success: function(response) {
+                selectedIds = response.ids || [];
+                restoreCheckboxState();
+                updateSelectionUI();
+                showToast('Selected all ' + selectedIds.length + ' matching items.', 'success');
+                $btn.html('<i class="fas fa-layer-group me-2"></i>All Pages');
+            },
+            error: function() {
+                showToast('Failed to fetch all IDs.', 'danger');
+                $btn.html('<i class="fas fa-layer-group me-2"></i>All Pages');
+            }
         });
     });
 
-    // Sync Delivery API call
-    document.getElementById('btnSyncDelivery').addEventListener('click', function() {
-        const btn = this;
-        // visual state update
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
-        btn.disabled = true;
+    // Deselect All
+    $('#deselectAll').on('click', function(e) {
+        e.preventDefault();
+        clearSelection();
+    });
 
-        fetch('{{ url_for("sync.sync_delivery") }}', {
+    // Clear Selection button in toolbar
+    $('#btnClearSelection').on('click', function() {
+        clearSelection();
+    });
+
+    // =========================================================================
+    // FILTER ACTIONS
+    // =========================================================================
+    $('#btnApplyFilter').on('click', function() {
+        // Update Export All link with current filter params
+        var params = $.param({
+            start_date: $('#start_date').val() || '',
+            end_date: $('#end_date').val() || '',
+            sku: $('#sku').val() || ''
+        });
+        $('#btnExportAll').attr('href', '{{ url_for("export.export_csv") }}?' + params);
+        // Redraw DataTable with new filter values
+        table.draw();
+    });
+
+    $('#btnClearFilter').on('click', function() {
+        $('#start_date').val('');
+        $('#end_date').val('');
+        $('#sku').val('');
+        $('#btnExportAll').attr('href', '{{ url_for("export.export_csv") }}');
+        table.draw();
+    });
+
+    // =========================================================================
+    // EXPORT SELECTED (POST with IDs)
+    // =========================================================================
+    $('#btnExportSelected').on('click', function() {
+        if (selectedIds.length === 0) {
+            showToast('No items selected.', 'warning');
+            return;
+        }
+
+        var $btn = $(this);
+        var originalHtml = $btn.html();
+        $btn.html('<span class="spinner-border spinner-border-sm me-1"></span> Exporting...').prop('disabled', true);
+
+        // Use fetch to POST JSON and download the CSV file
+        fetch('{{ url_for("export.export_selected") }}', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'}
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: selectedIds })
         })
-        .then(response => response.json())
-        .then(data => {
-            showToast(data.message, data.success ? 'success' : 'danger');
-            if (data.success) {
-                setTimeout(() => window.location.reload(), 1500);
-            } else {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
+        .then(function(response) {
+            if (!response.ok) throw new Error('Export failed');
+            return response.blob();
         })
-        .catch(err => {
-            showToast('An error occurred updating delivery status.', 'danger');
-            btn.innerHTML = originalText;
-            btn.disabled = false;
+        .then(function(blob) {
+            // Create a temporary download link
+            var url = window.URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'shopify_orders_selected_export.csv';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            showToast('Exported ' + selectedIds.length + ' items successfully!', 'success');
+        })
+        .catch(function(err) {
+            showToast('Export failed: ' + err.message, 'danger');
+        })
+        .finally(function() {
+            $btn.html(originalHtml).prop('disabled', false);
         });
     });
+
+    // =========================================================================
+    // SYNC ORDERS — open modal with date pickers
+    // =========================================================================
+    $('#btnSyncOrders').on('click', function() {
+        // Clear previous dates and open modal
+        $('#sync_start_date').val('');
+        $('#sync_end_date').val('');
+        var modal = new bootstrap.Modal(document.getElementById('syncOrdersModal'));
+        modal.show();
+    });
+
+    // Confirm Sync button inside modal
+    $('#btnConfirmSync').on('click', function() {
+        var $btn = $(this);
+        var originalHtml = $btn.html();
+        $btn.html('<span class="spinner-border spinner-border-sm me-1"></span> Syncing...').prop('disabled', true);
+
+        // Collect optional dates
+        var syncData = {};
+        var startDate = $('#sync_start_date').val();
+        var endDate = $('#sync_end_date').val();
+        if (startDate) syncData.start_date = startDate;
+        if (endDate) syncData.end_date = endDate;
+
+        $.ajax({
+            url: '{{ url_for("sync.sync_orders") }}',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(syncData),
+            success: function(data) {
+                showToast(data.message, data.success ? 'success' : 'danger');
+                if (data.success) {
+                    setTimeout(function() { table.draw(); }, 500);
+                }
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('syncOrdersModal')).hide();
+            },
+            error: function(xhr) {
+                var msg = 'An error occurred during sync.';
+                try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+                showToast(msg, 'danger');
+            },
+            complete: function() {
+                $btn.html(originalHtml).prop('disabled', false);
+            }
+        });
+    });
+
+    // =========================================================================
+    // SYNC DELIVERY
+    // =========================================================================
+    $('#btnSyncDelivery').on('click', function() {
+        var $btn = $(this);
+        var originalHtml = $btn.html();
+        $btn.html('<span class="spinner-border spinner-border-sm me-1"></span> Updating...').prop('disabled', true);
+
+        $.ajax({
+            url: '{{ url_for("sync.sync_delivery") }}',
+            type: 'POST',
+            contentType: 'application/json',
+            success: function(data) {
+                showToast(data.message, data.success ? 'success' : 'danger');
+                if (data.success) {
+                    setTimeout(function() { table.draw(); }, 500);
+                }
+            },
+            error: function() {
+                showToast('An error occurred updating delivery status.', 'danger');
+            },
+            complete: function() {
+                $btn.html(originalHtml).prop('disabled', false);
+            }
+        });
+    });
+
+}); // end document.ready
 </script>
 {% endblock %}

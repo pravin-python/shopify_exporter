@@ -22,6 +22,8 @@ class Config:
     # Shopify Configuration
     SHOPIFY_STORE = os.environ.get('SHOPIFY_STORE')
     SHOPIFY_ACCESS_TOKEN = os.environ.get('SHOPIFY_ACCESS_TOKEN')
+    SHOPIFY_API_KEY = os.environ.get('SHOPIFY_API_KEY')
+    SHOPIFY_API_SECRET = os.environ.get('SHOPIFY_API_SECRET')
     
     # USPS Configuration
     USPS_USER_ID = os.environ.get('USPS_USER_ID')

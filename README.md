@@ -67,6 +67,7 @@ This project uses SQLAlchemy and an SQLite database located inside the `instance
 To create the tables for the first time, run the custom CLI command:
 
 ```bash
+python -c "import secrets; print(secrets.token_hex(32))"
 flask --app run init-db
 ```
 

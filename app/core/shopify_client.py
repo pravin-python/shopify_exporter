@@ -1,46 +1,152 @@
+import requests
 import time
-import random
 from datetime import datetime, timedelta
+from typing import List, Dict, Optional
+
 
 class ShopifyClient:
-    """Mock Shopify Client for Bulk Operations."""
-    
-    def __init__(self, store_url, access_token):
+
+    def __init__(self, store_url: str, access_token: str):
         self.store_url = store_url
         self.access_token = access_token
+        self.api_version = "2026-01"
 
-    def trigger_bulk_orders_export(self):
-        """Mock triggering a bulk export of orders."""
-        return {"bulk_operation_id": f"gid://shopify/BulkOperation/{random.randint(1000, 9999)}"}
+        self.endpoint = f"https://{self.store_url}/admin/api/{self.api_version}/graphql.json"
 
-    def check_bulk_operation_status(self, operation_id):
-        """Mock checking the status of a bulk export."""
-        return {
-            "status": "COMPLETED",
-            "url": "mock_download_url"
+        self.headers = {
+            "X-Shopify-Access-Token": self.access_token,
+            "Content-Type": "application/json",
         }
 
-    def download_bulk_data(self, url):
-        """Mock downloading and returning JSONL data."""
-        now = datetime.utcnow()
-        mock_data = []
-        for i in range(1, 6):
-            order_id = f"gid://shopify/Order/1000{i}"
-            order = {
-                "id": order_id,
-                "name": f"#{1000 + i}",
-                "createdAt": (now - timedelta(days=i)).isoformat() + "Z",
-                "__parentId": None
-            }
-            mock_data.append(order)
-            
-            for j in range(random.randint(1, 4)):
-                item = {
-                    "id": f"gid://shopify/LineItem/2000{i}{j}",
-                    "sku": f"SKU-{random.choice(['PRO', 'BASIC', 'PREM'])}-{random.randint(10, 99)}",
-                    "quantity": random.randint(1, 3),
-                    "__parentId": order_id
-                }
-                mock_data.append(item)
+    def get_orders_with_tracking(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[Dict]:
+
+        # Default last 7 days
+        if not start_date:
+            start_date = datetime.utcnow() - timedelta(days=250)
+        if not end_date:
+            end_date = datetime.utcnow()
+
+        start_iso = start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+        end_iso = end_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        orders_data = []
+        cursor = None
+        has_next_page = True
+
+        while has_next_page:
+
+            after_part = f', after: "{cursor}"' if cursor else ""
+
+            query = f"""
+            {{
+              orders(
+                first: 50
+                query: "created_at:>={start_iso} created_at:<={end_iso}"
+                {after_part}
+              ) {{
+                edges {{
+                  cursor
+                  node {{
+                    id
+                    name
+                    createdAt
+                    totalPriceSet {{
+                        shopMoney {{
+                            amount
+                            currencyCode
+                        }}
+                    }}
+
+                    lineItems(first: 250) {{
+                        edges {{
+                            node {{
+                                id
+                                title
+                                quantity
+                                sku
+                                variantTitle
+                                vendor
+                                originalUnitPriceSet {{
+                                    shopMoney {{
+                                        amount
+                                        currencyCode
+                                    }}
+                                }}
+                                totalDiscountSet {{
+                                    shopMoney {{
+                                        amount
+                                        currencyCode
+                                    }}
+                                }}
+                            }}
+                        }}
+                    }}
+                    fulfillments(first: 250) {{
+                      createdAt
+                      trackingInfo {{
+                        number
+                        url
+                        company
+                      }}
+                    }}
+                  }}
+                }}
+                pageInfo {{
+                  hasNextPage
+                  endCursor
+                }}
+              }}
+            }}
+            """
+
+            response = requests.post(
+                self.endpoint,
+                headers=self.headers,
+                json={"query": query},
+            )
+
+            if response.status_code != 200:
+                raise Exception(f"Shopify API Error: {response.text}")
+
+            data = response.json()
+            orders = data["data"]["orders"]["edges"]
+
+            for edge in orders:
+                order = edge["node"]
+                fulfillment = []
+                items = []
+                for fulfillment in order.get("fulfillments", []):
+                    for tracking in fulfillment.get("trackingInfo", []):
+                        if tracking.get("number"):
+                            fulfillment.append(fulfillment)
                 
-        return mock_data
+                for item in order.get("lineItems", {}).get("edges", []):
+                    items.append(item["node"])
+                    
+
+                orders_data.append({
+                    "order_id": order["id"],
+                    "order_name": order["name"],
+                    "order_created_at": order["createdAt"],
+                    "fulfillment": fulfillment,
+                    "items": items,
+                })
+
+            # Pagination control
+            page_info = data["data"]["orders"]["pageInfo"]
+            has_next_page = page_info["hasNextPage"]
+            cursor = page_info["endCursor"]
+
+            # Shopify rate limit safe delay
+            time.sleep(0.5)
+
+        return orders_data
+
+if __name__ == "__main__":
+    shopify_client = ShopifyClient("plus-store-dws.myshopify.com", "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")
+    orders = shopify_client.get_orders_with_tracking()
+    print(orders)

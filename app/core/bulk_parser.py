@@ -1,50 +1,98 @@
-import json
+"""
+Parser for Shopify GraphQL order data.
+Parses the list of order dicts from ShopifyClient.get_orders_with_tracking()
+and stores them in Order + OrderItem tables with proper relationships.
+"""
 from datetime import datetime
 from app.extensions import db
 from app.models.order import Order
 from app.models.order_item import OrderItem
 
-def parse_and_store_bulk_data(jsonl_data):
-    """
-    Parse JSONL data from Shopify bulk operation and store it in SQLite.
-    In this mock version, jsonl_data is a list of dicts.
-    """
-    orders_map = {}
-    
-    # Pass 1: Handle orders
-    for line in jsonl_data:
-        if line.get("__parentId") is None and "Order" in line.get("id", ""):
-            shopify_order_id = line["id"]
-            
-            order = Order.query.filter_by(shopify_order_id=shopify_order_id).first()
-            if not order:
-                created_at_str = line["createdAt"]
-                # Parse naive datetime (strip timezone for simple SQLite setup)
-                created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00")).replace(tzinfo=None)
-                
-                order = Order(
-                    shopify_order_id=shopify_order_id,
-                    order_name=line["name"],
-                    created_at=created_at
-                )
-                db.session.add(order)
-                db.session.flush() # Get DB ID
-                
-            orders_map[shopify_order_id] = order.id
 
-    # Pass 2: Handle LineItems
-    for line in jsonl_data:
-        parent_id = line.get("__parentId")
-        if parent_id and parent_id in orders_map:
-            order_id = orders_map[parent_id]
-            
-            item = OrderItem(
-                order_id=order_id,
-                sku=line.get("sku", "UNKNOWN"),
-                quantity=line.get("quantity", 1),
-                tracking_number=f"TRK{line.get('id', '')[-5:]}"  # Mock a tracking number
+def parse_and_store_bulk_data(orders_data):
+    """
+    Parse order data from Shopify GraphQL API and store in database.
+    
+    Expected input format (list of dicts):
+    [
+        {
+            "order_id": "gid://shopify/Order/123",
+            "order_name": "#1010",
+            "order_created_at": "2025-07-29T13:27:08Z",
+            "fulfillment": [...],
+            "items": [
+                {
+                    "id": "gid://shopify/LineItem/456",
+                    "title": "Product Name",
+                    "quantity": 1,
+                    "sku": "SKU-123" or None,
+                    "variantTitle": "$10",
+                    "vendor": "Vendor Name",
+                    "originalUnitPriceSet": {"shopMoney": {"amount": "10.06", "currencyCode": "INR"}},
+                    "totalDiscountSet": {"shopMoney": {"amount": "0.0", "currencyCode": "INR"}}
+                }
+            ]
+        }
+    ]
+    
+    Returns: number of orders saved/updated
+    """
+    orders_saved = 0
+
+    # Clear ALL existing data before inserting fresh orders
+    OrderItem.query.delete()
+    Order.query.delete()
+    db.session.flush()
+
+    for order_data in orders_data:
+        shopify_order_id = order_data.get('order_id', '')
+        if not shopify_order_id:
+            continue
+
+        # ----- Create Order -----
+        created_at_str = order_data.get('order_created_at', '')
+        try:
+            created_at = datetime.fromisoformat(
+                created_at_str.replace('Z', '+00:00')
+            ).replace(tzinfo=None)
+        except (ValueError, AttributeError):
+            created_at = datetime.utcnow()
+
+        order = Order(
+            shopify_order_id=shopify_order_id,
+            order_name=order_data.get('order_name', ''),
+            created_at=created_at,
+        )
+        db.session.add(order)
+        db.session.flush()  # Get the DB-generated id
+
+        # ----- Tracking numbers from fulfillments -----
+        tracking_numbers = []
+        for fulfillment in order_data.get('fulfillment', []):
+            if isinstance(fulfillment, dict):
+                for tracking in fulfillment.get('trackingInfo', []):
+                    tn = tracking.get('number', '')
+                    if tn:
+                        tracking_numbers.append(tn)
+
+        # ----- Create Line Items -----
+        items = order_data.get('items', [])
+        for idx, item_data in enumerate(items):
+            sku = item_data.get('sku') or item_data.get('title', 'UNKNOWN')
+
+            tracking_number = None
+            if tracking_numbers:
+                tracking_number = tracking_numbers[idx] if idx < len(tracking_numbers) else tracking_numbers[0]
+
+            order_item = OrderItem(
+                order_id=order.id,
+                sku=sku,
+                quantity=item_data.get('quantity', 1),
+                tracking_number=tracking_number,
             )
-            db.session.add(item)
+            db.session.add(order_item)
+
+        orders_saved += 1
 
     db.session.commit()
-    return len(orders_map)
+    return orders_saved
