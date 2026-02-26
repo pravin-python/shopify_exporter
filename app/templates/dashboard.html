@@ -11,6 +11,10 @@
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="card-title mb-0">Filters & Actions</h5>
                     <div>
+                        <button id="btnConnectShopify" class="btn btn-sm me-2 {{ 'btn-outline-success' if shop_connected else 'btn-warning' }}">
+                            <i class="fab fa-shopify me-1"></i>
+                            {{ 'Connected' if shop_connected else 'Connect Shopify' }}
+                        </button>
                         <button id="btnSyncOrders" class="btn btn-outline-primary btn-sm me-2">
                             <i class="fas fa-sync-alt me-1"></i> Sync Orders
                         </button>
@@ -76,6 +80,31 @@
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary btn-sm" id="btnConfirmSync">
                     <i class="fas fa-sync-alt me-1"></i> Start Sync
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- OAuth Success Modal -->
+<div class="modal fade" id="oauthSuccessModal" tabindex="-1" aria-labelledby="oauthSuccessModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="oauthSuccessModalLabel">
+                    <i class="fab fa-shopify me-2"></i>Shopify Connected!
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
+                <h5 class="mt-3">Access Token Generated Successfully!</h5>
+                <p class="text-muted mb-1">Shop: <strong id="oauthShopName"></strong></p>
+                <p class="text-muted mb-0">Scopes: <code id="oauthScopes"></code></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success btn-sm" data-bs-dismiss="modal">
+                    <i class="fas fa-thumbs-up me-1"></i> Great!
                 </button>
             </div>
         </div>
@@ -555,6 +584,51 @@ $(document).ready(function() {
             }
         });
     });
+
+    // =========================================================================
+    // CONNECT SHOPIFY — OAuth flow
+    // =========================================================================
+    $('#btnConnectShopify').on('click', function() {
+        var shopUrl = '{{ shop_url or "" }}';
+
+        if (!shopUrl) {
+            // Prompt user for shop URL if not configured
+            shopUrl = prompt('Enter your Shopify store domain:', 'your-store.myshopify.com');
+            if (!shopUrl) return;
+        }
+
+        // Ensure it ends with .myshopify.com
+        if (!shopUrl.endsWith('.myshopify.com')) {
+            showToast('Invalid shop domain. Must end with .myshopify.com', 'danger');
+            return;
+        }
+
+        // Redirect to the install URL — Shopify will redirect back to /auth/callback
+        var installUrl = '{{ url_for("auth.install") }}?shop=' + encodeURIComponent(shopUrl);
+        window.location.href = installUrl;
+    });
+
+    // =========================================================================
+    // CHECK FOR OAUTH CALLBACK RESULT (on page load)
+    // =========================================================================
+    var urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('oauth') === 'success') {
+        var shopName = urlParams.get('shop') || '';
+        var scopes = urlParams.get('scopes') || '';
+        $('#oauthShopName').text(shopName);
+        $('#oauthScopes').text(scopes);
+        var modal = new bootstrap.Modal(document.getElementById('oauthSuccessModal'));
+        modal.show();
+
+        // Update the Connect button to show Connected state
+        $('#btnConnectShopify')
+            .removeClass('btn-warning')
+            .addClass('btn-outline-success')
+            .html('<i class="fab fa-shopify me-1"></i> Connected');
+
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
 
 }); // end document.ready
 </script>

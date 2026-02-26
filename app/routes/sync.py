@@ -4,6 +4,7 @@ from app.core.shopify_client import ShopifyClient
 from app.core.usps_client import USPSClient
 from app.core.bulk_parser import parse_and_store_bulk_data
 from app.models.order_item import OrderItem
+from app.models.shop import Shop
 from app.extensions import db
 from datetime import datetime
 
@@ -13,8 +14,20 @@ sync_bp = Blueprint('sync', __name__)
 def sync_orders():
     """Trigger Shopify sync with optional date range."""
     store = current_app.config.get('SHOPIFY_STORE')
-    token = current_app.config.get('SHOPIFY_ACCESS_TOKEN')
-    
+
+    # Fetch access token from DB first, fallback to config/env
+    token = None
+    if store:
+        shop_record = Shop.query.filter_by(shop_url=store).first()
+        if shop_record:
+            token = shop_record.access_token
+
+    if not token:
+        token = current_app.config.get('SHOPIFY_ACCESS_TOKEN')
+
+    if not token:
+        return jsonify({"success": False, "message": "No access token found. Please connect Shopify first."}), 400
+
     client = ShopifyClient(store, token)
     
     # Parse optional date range from request body
