@@ -1,26 +1,48 @@
 import requests
+import hmac
+import hashlib
 from flask import Blueprint, request, current_app, jsonify
 from app.models.shop import Shop
 from app.extensions import db
+import httpx
 
 auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route("/callback")
 def callback():
     """Handle Shopify OAuth callback, exchange code for access token, and store it."""
-    shop_url = request.args.get("shop")
-    code = request.args.get("code")
+    params = dict(request.query_params)
+    shop = params.get("shop")
+    code = params.get("code")
+    hmac_header = params.get("hmac")
+    state = params.get("state")
 
-    if not shop_url or not code:
+    # 1. Verify HMAC (Crucial for security)
+    # Remove 'hmac' from params to calculate hash of the rest
+    data_to_verify = params.copy()
+    data_to_verify.pop("hmac")
+
+    if not shop or not code:
         return "Missing shop or code parameters.", 400
-
+    
+    # Sort keys alphabetically and join as key=value&key=value
+    message = "&".join([f"{k}={v}" for k, v in sorted(data_to_verify.items())])
     api_key = current_app.config.get("SHOPIFY_API_KEY")
     api_secret = current_app.config.get("SHOPIFY_API_SECRET")
+
+    hash_digest = hmac.new(
+        api_key.encode(),
+        message.encode(),
+        hashlib.sha256
+    ).hexdigest()
+
+    if not hmac.compare_digest(hash_digest, hmac_header):
+        return "HMAC validation failed", 401
 
     if not api_key or not api_secret:
         return "API Key or Secret is not configured in environment.", 500
 
-    url = f"https://{shop_url}/admin/oauth/access_token"
+    url = f"https://{shop}/admin/oauth/access_token"
 
     try:
         response = requests.post(url, json={
