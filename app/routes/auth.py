@@ -117,13 +117,12 @@ def callback():
 
     try:
         headers = {
-            "Content-Type": "application/x-www-form-urlencoded",
+            "Content-Type": "application/json",
         }
-        response = requests.post(token_url, data={
+        response = requests.post(token_url, json={
             "client_id": api_key,
             "client_secret": api_secret,
-            "code": code,
-            "expiring": 0,
+            "code": code
         }, headers=headers, timeout=15)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:

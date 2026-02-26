@@ -27,7 +27,7 @@ def sync_orders():
 
     if not token:
         return jsonify({"success": False, "message": "No access token found. Please connect Shopify first."}), 400
-
+    print(store, token)
     client = ShopifyClient(store, token)
     
     # Parse optional date range from request body

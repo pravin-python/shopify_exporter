@@ -51,3 +51,4 @@ instance/*
 .idea/
 .DS_Store
 Thumbs.db
+.venv/
