@@ -116,11 +116,15 @@ def callback():
     token_url = f"https://{shop}/admin/oauth/access_token"
 
     try:
-        response = requests.post(token_url, json={
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
+        response = requests.post(token_url, data={
             "client_id": api_key,
             "client_secret": api_secret,
             "code": code,
-        }, timeout=15)
+            "expiring": 0,
+        }, headers=headers, timeout=15)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"Token exchange failed: {e}")
