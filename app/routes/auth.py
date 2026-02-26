@@ -4,14 +4,14 @@ import hashlib
 from flask import Blueprint, request, current_app, jsonify
 from app.models.shop import Shop
 from app.extensions import db
-import httpx
+
 
 auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route("/callback")
 def callback():
     """Handle Shopify OAuth callback, exchange code for access token, and store it."""
-    params = dict(request.query_params)
+    params = request.args.to_dict()
     shop = params.get("shop")
     code = params.get("code")
     hmac_header = params.get("hmac")
@@ -31,7 +31,7 @@ def callback():
     api_secret = current_app.config.get("SHOPIFY_API_SECRET")
 
     hash_digest = hmac.new(
-        api_key.encode(),
+        api_secret.encode(),
         message.encode(),
         hashlib.sha256
     ).hexdigest()
@@ -62,12 +62,12 @@ def callback():
         return "Could not retrieve access token from Shopify response.", 400
 
     # Save to SQLite Model
-    shop = Shop.query.filter_by(shop_url=shop_url).first()
-    if shop:
-        shop.access_token = access_token
+    existing_shop = Shop.query.filter_by(shop_url=shop).first()
+    if existing_shop:
+        existing_shop.access_token = access_token
     else:
-        shop = Shop(shop_url=shop_url, access_token=access_token)
-        db.session.add(shop)
+        new_shop = Shop(shop_url=shop, access_token=access_token)
+        db.session.add(new_shop)
 
     db.session.commit()
 
