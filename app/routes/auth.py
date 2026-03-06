@@ -120,9 +120,9 @@ def callback():
             "Content-Type": "application/json",
         }
         response = requests.post(token_url, json={
+            "grant_type": "client_credentials",
             "client_id": api_key,
             "client_secret": api_secret,
-            "code": code
         }, headers=headers, timeout=15)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
