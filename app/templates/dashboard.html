@@ -171,6 +171,8 @@
                                 <th>Tracking #</th>
                                 <th>Delivery Status</th>
                                 <th>Delivered At</th>
+                                <th>Email Message</th>
+                                <th>Email Time</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -299,6 +301,16 @@ $(document).ready(function() {
             },
             { 
                 data: 'delivered_at', 
+                render: function(data) { return data || '-'; }
+            },
+            { 
+                data: 'shipping_email_message',
+                render: function(data) { 
+                    return data ? '<small class="text-truncate d-inline-block" style="max-width: 150px;" title="' + data + '">' + data + '</small>' : '-'; 
+                }
+            },
+            { 
+                data: 'shipping_email_time', 
                 render: function(data) { return data || '-'; }
             }
         ],

@@ -48,6 +48,8 @@ def get_orders():
         7: OrderItem.tracking_number,
         8: OrderItem.delivery_status,
         9: OrderItem.delivered_at,
+        10: OrderItem.shipping_email_message,
+        11: OrderItem.shipping_email_time,
     }
 
     # Base query
@@ -118,6 +120,8 @@ def get_orders():
             'tracking_number': item.tracking_number or '',
             'delivery_status': item.delivery_status or 'Pending',
             'delivered_at': item.delivered_at.strftime('%Y-%m-%d %H:%M') if item.delivered_at else '',
+            'shipping_email_message': item.shipping_email_message or '',
+            'shipping_email_time': item.shipping_email_time.strftime('%Y-%m-%d %H:%M') if item.shipping_email_time else '',
         })
 
     return jsonify({

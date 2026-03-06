@@ -153,6 +153,48 @@ class ShopifyClient:
 
         return orders_data
 
+    def get_order_shipping_email_event(self, order_gid: str) -> Optional[Dict]:
+        """
+        Fetch order events and look for 'Shipping confirmation email'
+        """
+        query = f"""
+        {{
+          order(id: "{order_gid}") {{
+            events(first: 50) {{
+              edges {{
+                node {{
+                  message
+                  createdAt
+                }}
+              }}
+            }}
+          }}
+        }}
+        """
+        response = requests.post(
+            self.endpoint,
+            headers=self.headers,
+            json={"query": query},
+        )
+        if response.status_code != 200:
+            return None
+            
+        data = response.json()
+        try:
+            events = data["data"]["order"]["events"]["edges"]
+            for edge in events:
+                node = edge["node"]
+                message = node.get("message", "")
+                if message and "Shipment delivered email" in message:
+                    return {
+                        "message": message,
+                        "createdAt": node.get("createdAt")
+                    }
+        except (KeyError, TypeError):
+            pass
+            
+        return None
+
 if __name__ == "__main__":
     shopify_client = ShopifyClient("plus-store-dws.myshopify.com", "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")
     orders = shopify_client.get_orders_with_tracking()

@@ -52,6 +52,26 @@ def sync_orders():
         print(orders)
         orders_saved = parse_and_store_bulk_data(orders)
         
+        # Look up email tracking events for each order
+        from app.models.order import Order
+        for order_data in orders:
+            order_gid = order_data["order_id"]
+            db_order = Order.query.filter_by(shopify_order_id=order_gid).first()
+            if db_order:
+                email_event = client.get_order_shipping_email_event(order_gid)
+                if email_event:
+                    # Update all items of this order
+                    items = OrderItem.query.filter_by(order_id=db_order.id).all()
+                    for item in items:
+                        item.shipping_email_message = email_event["message"]
+                        try:
+                            item.shipping_email_time = datetime.fromisoformat(
+                                email_event["createdAt"].replace('Z', '+00:00')
+                            ).replace(tzinfo=None)
+                        except (ValueError, AttributeError):
+                            pass
+        db.session.commit()
+        
         return jsonify({
             "success": True,
             "message": f"Successfully synced {orders_saved} orders.",

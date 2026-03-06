@@ -15,6 +15,8 @@ class OrderItem(db.Model):
     tracking_url = db.Column(db.String(500), nullable=True)
     tracking_company = db.Column(db.String(100), nullable=True)
     delivery_status = db.Column(db.String(50), nullable=True, default='Pending')
+    shipping_email_message = db.Column(db.Text, nullable=True)
+    shipping_email_time = db.Column(db.DateTime, nullable=True)
 
     def __repr__(self):
         return f"<OrderItem {self.sku} for Order {self.order_id}>"
