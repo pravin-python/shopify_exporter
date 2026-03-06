@@ -24,8 +24,8 @@ def export_orders_to_csv(query_results):
             "Fulfilled At": item.fulfilled_at.strftime("%Y-%m-%d %H:%M:%S") if item.fulfilled_at else "",
             "Tracking Number": item.tracking_number,
             "Delivery Status": item.delivery_status,
-            "Shipping Email Time": item.shipping_email_time.strftime("%Y-%m-%d %H:%M:%S") if item.shipping_email_time else ""
-            "Delivered At": item.delivered_at.strftime("%Y-%m-%d %H:%M:%S") if item.delivered_at else "",
+            "Shipping Email Time": item.shipping_email_time.strftime("%Y-%m-%d %H:%M:%S") if item.shipping_email_time else "",
+            "Delivered At": item.delivered_at.strftime("%Y-%m-%d %H:%M:%S") if item.delivered_at else ""
         }
         flat_data.append(row)
         
