@@ -25,15 +25,25 @@ It is recommended to run this project in an isolated Python environment.
 
 Open your PowerShell/Terminal in the project directory (`shopify_exporter`):
 
-```powershell
+```bash
 # Create virtual environment
 python -m venv venv
+#OR
+python3 -m venv venv
 
-# Activate virtual environment (Windows)
-venv\Scripts\activate
+# Activate virtual environment (Windows PowerShell)
+venv\Scripts\Activate.ps1
+
+# Activate virtual environment (Windows CMD)
+venv\Scripts\activate.bat
 
 # Activate virtual environment (Mac/Linux)
 source venv/bin/activate
+```
+
+**Note for Windows users:** If PowerShell shows an execution policy error, run this once:
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
 ### 2. Install Dependencies
@@ -50,7 +60,7 @@ pip install -r requirements.txt
 Create your local environment file:
 
 1. Copy `.env.example` to a new file named `.env`.
-2. Open `.env` and fill out the mock values with your actual credentials if ready, or leave as-is for mock testing.
+2. Open `.env` and fill out your actual Shopify and USPS credentials, or leave as-is for development testing.
 
 ```bash
 # Example .env copy command (Windows PowerShell)
@@ -60,6 +70,13 @@ Copy-Item .env.example .env
 cp .env.example .env
 ```
 
+Fill in the `.env` file with your credentials:
+```
+SHOPIFY_STORE=your-store-name.myshopify.com
+SHOPIFY_ACCESS_TOKEN=your-access-token
+SECRET_KEY=your-secret-key
+```
+
 ### 4. Database Setup & Migration
 
 This project uses SQLAlchemy and an SQLite database located inside the `instance/` folder.
@@ -67,7 +84,6 @@ This project uses SQLAlchemy and an SQLite database located inside the `instance
 To create the tables for the first time, run the custom CLI command:
 
 ```bash
-python -c "import secrets; print(secrets.token_hex(32))"
 flask --app run init-db
 ```
 
@@ -75,32 +91,31 @@ flask --app run init-db
 
 ### 5. Run the Application
 
-Start the Flask development server:
+Start the Flask development server (make sure your virtual environment is activated):
 
+**Option A - Flask CLI (Recommended for development):**
 ```bash
 flask --app run run
 ```
 
-Or you can simply run the Python entry point:
-
+**Option B - Direct Python entry point:**
 ```bash
 python run.py
 ```
 
-Or run the server using `waitress`:
-
+**Option C - Using waitress (Production-like):**
 ```bash
-waitress-serve --port=8080 run:app
+waitress-serve --port=5000 run:app
 ```
 
-Or run the python script directly:
-
+**Option D - Windows batch script (Quick start):**
 ```bash
-python wsgi.py
+.\start_server.bat
 ```
 
-The server will start on port 5000. Open your browser and navigate to:
-**[http://127.0.0.1:5000/](http://127.0.0.1:5000/)**
+The server will start on **http://127.0.0.1:5000/**
+
+Open your browser and navigate to: **[http://127.0.0.1:5000/](http://127.0.0.1:5000/)**
 
 ---
 

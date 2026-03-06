@@ -27,7 +27,6 @@ def sync_orders():
 
     if not token:
         return jsonify({"success": False, "message": "No access token found. Please connect Shopify first."}), 400
-    print(store, token)
     client = ShopifyClient(store, token)
     
     # Parse optional date range from request body
@@ -49,39 +48,75 @@ def sync_orders():
     
     try:
         orders = client.get_orders_with_tracking(start_date=start_date, end_date=end_date)
-        print(orders)
         orders_saved = parse_and_store_bulk_data(orders)
         
-        # Look up email tracking events for each order
-        from app.models.order import Order
-        for order_data in orders:
-            order_gid = order_data["order_id"]
-            db_order = Order.query.filter_by(shopify_order_id=order_gid).first()
-            if db_order:
-                email_event = client.get_order_shipping_email_event(order_gid)
-                if email_event:
-                    # Update all items of this order
-                    items = OrderItem.query.filter_by(order_id=db_order.id).all()
-                    for item in items:
-                        item.shipping_email_message = email_event["message"]
-                        try:
-                            item.shipping_email_time = datetime.fromisoformat(
-                                email_event["createdAt"].replace('Z', '+00:00')
-                            ).replace(tzinfo=None)
-                        except (ValueError, AttributeError):
-                            pass
-        db.session.commit()
-        
-        return jsonify({
-            "success": True,
-            "message": f"Successfully synced {orders_saved} orders.",
-            "count": orders_saved
-        })
     except Exception as e:
         return jsonify({
             "success": False,
             "message": f"Sync failed: {str(e)}"
         }), 400
+
+    # Start background thread to fetch email tracking events concurrently
+    import threading
+    import concurrent.futures
+    from app.models.order import Order
+    from app.routes.api import sync_status
+    
+    def fetch_email_events_async(app, orders_data, token):
+        with app.app_context():
+            sync_status["is_running"] = True
+            try:
+                store = app.config.get('SHOPIFY_STORE')
+                local_client = ShopifyClient(store, token)
+                
+                # Form a dict of order_gid -> Order.id to avoid querying DB for each separately inside the executor
+                gid_to_db_id = {}
+                for order_data in orders_data:
+                    order_gid = order_data["order_id"]
+                    db_order = Order.query.filter_by(shopify_order_id=order_gid).first()
+                    if db_order:
+                        gid_to_db_id[order_gid] = db_order.id
+                        
+                def fetch_single_event(order_gid):
+                    return order_gid, local_client.get_order_shipping_email_event(order_gid)
+                    
+                # Make 20 concurrent requests to Shopify API to massively improve speed
+                with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                    future_to_gid = {executor.submit(fetch_single_event, gid): gid for gid in gid_to_db_id.keys()}
+                    
+                    for future in concurrent.futures.as_completed(future_to_gid):
+                        try:
+                            order_gid, email_event = future.result()
+                            if email_event:
+                                db_order_id = gid_to_db_id[order_gid]
+                                items = OrderItem.query.filter_by(order_id=db_order_id).all()
+                                for item in items:
+                                    item.shipping_email_message = email_event["message"]
+                                    try:
+                                        item.shipping_email_time = datetime.fromisoformat(
+                                            email_event["createdAt"].replace('Z', '+00:00')
+                                        ).replace(tzinfo=None)
+                                    except (ValueError, AttributeError):
+                                        pass
+                        except Exception as exc:
+                            print(f'Order generated an exception: {exc}')
+                            
+                db.session.commit()
+            finally:
+                sync_status["is_running"] = False
+
+    app_instance = current_app._get_current_object()
+    thread = threading.Thread(
+        target=fetch_email_events_async, 
+        args=(app_instance, orders, token)
+    )
+    thread.start()
+
+    return jsonify({
+        "success": True,
+        "message": f"Successfully synced {orders_saved} orders. Email tracking is updating in the background.",
+        "count": orders_saved
+    })
 
 @sync_bp.route('/delivery', methods=['POST'])
 def sync_delivery():

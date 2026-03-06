@@ -9,6 +9,17 @@ from datetime import datetime
 
 api_bp = Blueprint('api', __name__)
 
+# Global flag to track background sync status for the UI loader
+sync_status = {
+    "is_running": False
+}
+
+@api_bp.route('/sync/status')
+def get_sync_status():
+    """Returns the current status of the background email sync process."""
+    return jsonify({
+        "is_running": sync_status["is_running"]
+    })
 
 @api_bp.route('/orders')
 def get_orders():

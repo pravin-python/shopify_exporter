@@ -21,98 +21,24 @@ DEFAULT_SCOPES = "read_orders,read_fulfillments"
 
 
 # ---------------------------------------------------------------------------
-# Step 1: /install — Start the OAuth flow
+# Generate Token Flow (Replaces install and callback)
 # ---------------------------------------------------------------------------
-@auth_bp.route("/install")
-def install():
+@auth_bp.route("/generate_token")
+def generate_token():
     """
-    Build the Shopify OAuth authorization URL and redirect the merchant
-    to grant permissions.
-
-    Usage:
-        GET /auth/install?shop=your-store.myshopify.com
+    Generate an access token directly using client credentials.
     """
-    shop = request.args.get("shop")
+    shop = current_app.config.get("SHOPIFY_STORE")
+    
     if not shop:
-        return jsonify({"error": "Missing 'shop' query parameter. "
-                        "Example: /auth/install?shop=your-store.myshopify.com"}), 400
-
-    # Sanitize — always force *.myshopify.com
-    if not shop.endswith(".myshopify.com"):
-        return jsonify({"error": "Invalid shop domain. Must end with .myshopify.com"}), 400
-
-    api_key = current_app.config.get("SHOPIFY_API_KEY")
-    if not api_key:
-        return jsonify({"error": "SHOPIFY_API_KEY is not configured in environment."}), 500
-
-    scopes = os.environ.get("SHOPIFY_SCOPES", DEFAULT_SCOPES)
-    redirect_uri = os.environ.get(
-        "SHOPIFY_REDIRECT_URI",
-        request.url_root.rstrip("/") + "/auth/callback"
-    )
-
-    # Generate a cryptographically secure nonce to prevent CSRF
-    nonce = secrets.token_hex(16)
-    session["oauth_nonce"] = nonce
-    session["oauth_shop"] = shop
-
-    # Offline access is the default grant mode (no grant_options[] parameter)
-    params = {
-        "client_id": api_key,
-        "scope": scopes,
-        "redirect_uri": redirect_uri,
-        "state": nonce,
-    }
-
-    auth_url = f"https://{shop}/admin/oauth/authorize?{urllib.parse.urlencode(params)}"
-    return redirect(auth_url)
-
-
-# ---------------------------------------------------------------------------
-# Step 2: /callback — Handle redirect from Shopify, exchange code for token
-# ---------------------------------------------------------------------------
-@auth_bp.route("/callback")
-def callback():
-    """
-    Shopify redirects here after the merchant approves the app.
-    We exchange the authorization code for a permanent offline access token.
-    """
-    params = request.args.to_dict()
-    shop = params.get("shop")
-    code = params.get("code")
-    hmac_header = params.get("hmac")
-    state = params.get("state")
-
-    # --- Basic validation ------------------------------------------------
-    if not shop or not code:
-        return jsonify({"error": "Missing shop or code parameters."}), 400
+        return jsonify({"error": "SHOPIFY_STORE is not configured in environment."}), 500
 
     api_key = current_app.config.get("SHOPIFY_API_KEY")
     api_secret = current_app.config.get("SHOPIFY_API_SECRET")
 
     if not api_key or not api_secret:
-        return jsonify({"error": "SHOPIFY_API_KEY or SHOPIFY_API_SECRET is "
-                        "not configured in environment."}), 500
+        return jsonify({"error": "SHOPIFY_API_KEY or SHOPIFY_API_SECRET is not configured in environment."}), 500
 
-    # --- State / nonce verification (CSRF protection) ---------------------
-    expected_nonce = session.pop("oauth_nonce", None)
-    if not state or state != expected_nonce:
-        return jsonify({"error": "State (nonce) mismatch — possible CSRF attack."}), 403
-
-    # --- HMAC verification ------------------------------------------------
-    data_to_verify = {k: v for k, v in params.items() if k != "hmac"}
-    message = "&".join(f"{k}={v}" for k, v in sorted(data_to_verify.items()))
-
-    hash_digest = hmac.new(
-        api_secret.encode("utf-8"),
-        message.encode("utf-8"),
-        hashlib.sha256
-    ).hexdigest()
-
-    if not hmac.compare_digest(hash_digest, hmac_header or ""):
-        return jsonify({"error": "HMAC validation failed — request may be tampered."}), 401
-
-    # --- Exchange authorization code for offline access token -------------
     token_url = f"https://{shop}/admin/oauth/access_token"
 
     try:
@@ -126,8 +52,8 @@ def callback():
         }, headers=headers, timeout=15)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
-        current_app.logger.error(f"Token exchange failed: {e}")
-        return jsonify({"error": f"Failed to exchange token with Shopify: {str(e)}"}), 502
+        current_app.logger.error(f"Token generation failed: {e}")
+        return jsonify({"error": f"Failed to generate token with Shopify: {str(e)}"}), 502
 
     data = response.json()
     access_token = data.get("access_token")
