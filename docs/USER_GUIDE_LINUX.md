@@ -154,7 +154,26 @@ SHOPIFY_REDIRECT_URI=http://localhost:5000/auth/callback
 **Where to find these values:**
 - **SHOPIFY_STORE**: Your Shopify store URL (e.g., `my-store.myshopify.com`)
 - **SHOPIFY_API_KEY & SHOPIFY_API_SECRET**: Go to [Shopify Partner Dashboard](https://partners.shopify.com/) → Your App → **API credentials**
-- **SECRET_KEY**: Any random string for Flask session security (e.g., `my-super-secret-key-2024`)
+- **SECRET_KEY**: A secure random string used by Flask to sign session cookies and protect against tampering. You should generate a strong one — **do not use a simple string in production.**
+
+#### 🔑 How to generate a secure SECRET_KEY
+
+Run this command in your Terminal:
+```bash
+python3 -c "import secrets; print(secrets.token_hex(24))"
+```
+
+This will output a random 48-character hex string, for example:
+```
+3f8a2c1e9b4d7e6f0a5c2b8d1e4f7a3c9b6d2e5f8a1c4b7
+```
+
+Copy that output and paste it as the value for `SECRET_KEY` in your `.env` file:
+```env
+SECRET_KEY=3f8a2c1e9b4d7e6f0a5c2b8d1e4f7a3c9b6d2e5f8a1c4b7
+```
+
+> ⚠️ **Important:** Never share your `SECRET_KEY` with anyone. Never commit your `.env` file to Git.
 
 If using nano: Press **Ctrl + O** then **Enter** to save, then **Ctrl + X** to exit.
 
