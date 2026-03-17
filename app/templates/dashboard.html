@@ -1,53 +1,83 @@
 {% extends 'base.html' %}
 
-{% block title %}Dashboard - Shopify Exporter{% endblock %}
+{% block title %}Dashboard - Order Exporter{% endblock %}
 
 {% block content %}
+
 <!-- Filters & Actions Card -->
 <div class="row mb-4">
     <div class="col-12">
-        <div class="card shadow-sm border-0">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">Filters & Actions</h5>
-                    <div>
+        <div class="card shadow-sm border-0" style="border-left: 4px solid var(--theme-accent) !important;">
+            <div class="card-body py-3 px-4">
+                <!-- Top Row: Title + Action Buttons -->
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <div class="d-flex align-items-center">
+                        <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--gradient-primary); display: flex; align-items: center; justify-content: center;"
+                            class="me-3">
+                            <i class="fas fa-sliders-h text-white" style="font-size: 0.9rem;"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0 fw-bold" style="font-size: 1.1rem;">Filters & Actions</h5>
+                            <small class="text-muted">Manage your Shopify data sync & filters</small>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
                         <button id="btnConnectShopify"
-                            class="btn btn-sm me-2 {{ 'btn-outline-success' if shop_connected else 'btn-warning' }}">
+                            class="btn btn-sm {{ 'btn-outline-success' if shop_connected else 'btn-warning' }}"
+                            style="border-radius: 8px; padding: 6px 14px; font-weight: 500;">
                             <i class="fab fa-shopify me-1"></i>
                             {{ 'Connected' if shop_connected else 'Connect Shopify' }}
                         </button>
-                        <button id="btnSyncOrders" class="btn btn-outline-primary btn-sm me-2">
+                        <button id="btnSyncOrders" class="btn btn-outline-primary btn-sm"
+                            style="border-radius: 8px; padding: 6px 14px; font-weight: 500;">
                             <i class="fas fa-sync-alt me-1"></i> Sync Orders
                         </button>
-                        <!-- <button id="btnSyncDelivery" class="btn btn-outline-info btn-sm me-2">
-                            <i class="fas fa-truck me-1"></i> Sync Delivery
-                        </button> -->
-                        <span id="syncLoader" class="text-primary ms-3" style="display: none;">
-                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                            <small class="fw-bold">Fetching Shopify Emails in background...</small>
+                        <span id="syncLoader" class="ms-2" style="display: none;">
+                            <span class="badge rounded-pill text-bg-light border px-3 py-2" style="font-size: 0.78rem;">
+                                <span class="spinner-border spinner-border-sm text-primary me-1" role="status"
+                                    aria-hidden="true" style="width: 12px; height: 12px;"></span>
+                                Fetching emails...
+                            </span>
                         </span>
                     </div>
                 </div>
 
-                <div class="row g-3">
-                    <div class="col-md-3">
+                <!-- Divider -->
+                <hr class="my-2" style="border-color: rgba(0,0,0,0.06);">
+
+                <!-- Bottom Row: Filter Inputs -->
+                <div class="row g-3 mt-1 align-items-end">
+                    <!-- Hidden date fields (kept for JS functionality) -->
+                    <div class="col-md-3" style="display: none;">
                         <label for="start_date" class="form-label">Start Date</label>
                         <input type="date" class="form-control" id="start_date">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-3" style="display: none;">
                         <label for="end_date" class="form-label">End Date</label>
                         <input type="date" class="form-control" id="end_date">
                     </div>
-                    <div class="col-md-4">
-                        <label for="sku" class="form-label">SKU (comma separated)</label>
-                        <input type="text" class="form-control" id="sku" placeholder="e.g. SKU-123, SKU-456">
+                    <div class="col-md-6 col-lg-5">
+                        <label for="sku" class="form-label fw-semibold" style="font-size: 0.85rem; color: #495057;">
+                            SKU Filter
+                            <small id="syncDateRange" class="text-muted fw-normal" style="font-size: 0.75rem;">
+                                {% if sync_log %}
+                                ({{ sync_log.sync_start_date.strftime('%d-%m-%Y') }} &mdash; {{
+                                sync_log.sync_end_date.strftime('%d-%m-%Y') }})
+                                {% endif %}
+                            </small>
+                        </label>
+                        <input type="text" class="form-control" id="sku" placeholder="e.g. SKU-123, SKU-456"
+                            style="border-radius: 8px; padding: 8px 14px;">
                     </div>
-                    <div class="col-md-2 d-flex align-items-end gap-2">
-                        <button type="button" id="btnApplyFilter" class="btn btn-primary w-100">
-                            <i class="fas fa-filter"></i> Filter
+                    <div class="col-auto d-flex gap-2">
+                        <button type="button" id="btnApplyFilter" class="btn btn-primary"
+                            style="border-radius: 8px; padding: 8px 20px; font-weight: 500;">
+                            <i class="fas fa-filter me-1"></i> Apply Filter
                         </button>
-                        <button type="button" id="btnClearFilter" class="btn btn-secondary">
-                            <i class="fas fa-times"></i>
+                        <button type="button" id="btnClearFilter" class="btn btn-warning"
+                            style="border-radius: 8px; padding: 8px 14px; display: none; font-weight: 500;"
+                            title="Clear filter">
+                            <i class="fas fa-times me-1"></i> Clear Filter
                         </button>
                     </div>
                 </div>
@@ -55,6 +85,34 @@
         </div>
     </div>
 </div>
+
+<!-- Sync Info Banner -->
+<div class="row mb-3" id="syncInfoBanner" {% if not sync_log %}style="display: none;" {% endif %}>
+    <div class="col-12">
+        <div class="alert alert-info mb-0 d-flex justify-content-between align-items-center shadow-sm border-0"
+            style="background: linear-gradient(135deg, #e0f7fa, #e1f5fe); border-left: 4px solid #0288d1 !important;">
+            <div>
+                <i class="fas fa-database me-2 text-primary"></i>
+                <strong>Synced Data:</strong>
+                <span id="syncDateRange">
+                    {% if sync_log %}
+                    {{ sync_log.sync_start_date.strftime('%d-%m-%Y') }} &mdash; {{
+                    sync_log.sync_end_date.strftime('%d-%m-%Y') }}
+                    {% endif %}
+                </span>
+                <span class="badge bg-primary ms-2" id="syncOrderCount">
+                    {% if sync_log %}{{ sync_log.orders_synced }} orders{% endif %}
+                </span>
+            </div>
+            <small class="text-muted" id="syncTimestamp">
+                {% if sync_log %}
+                Last synced: {{ sync_log.synced_at.strftime('%d-%m-%Y %H:%M') }}
+                {% endif %}
+            </small>
+        </div>
+    </div>
+</div>
+
 
 <!-- Sync Orders Modal (Date Range Picker) -->
 <div class="modal fade" id="syncOrdersModal" tabindex="-1" aria-labelledby="syncOrdersModalLabel" aria-hidden="true">
@@ -69,19 +127,27 @@
             </div>
             <div class="modal-body">
                 <p class="text-muted small mb-3">
-                    Select a date range to sync orders. Leave blank to sync all orders (default: last 250 days).
+                    Select a date range to sync orders. Leave blank to sync all orders (default: last 7 days).
                 </p>
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label for="sync_start_date" class="form-label">Start Date <span
                                 class="text-muted">(optional)</span></label>
-                        <input type="date" class="form-control" id="sync_start_date">
+                        <input type="date" class="form-control" id="sync_start_date" style="cursor: pointer;"
+                            onclick="this.showPicker()">
+                        <div class="invalid-feedback" id="sync_start_date_error"></div>
                     </div>
                     <div class="col-md-6">
                         <label for="sync_end_date" class="form-label">End Date <span
                                 class="text-muted">(optional)</span></label>
-                        <input type="date" class="form-control" id="sync_end_date">
+                        <input type="date" class="form-control" id="sync_end_date" style="cursor: pointer;"
+                            onclick="this.showPicker()">
+                        <div class="invalid-feedback" id="sync_end_date_error"></div>
                     </div>
+                </div>
+                <div class="alert alert-danger mt-3 py-2 small" id="syncDateError" style="display: none;">
+                    <i class="fas fa-exclamation-circle me-1"></i>
+                    <span id="syncDateErrorMsg"></span>
                 </div>
             </div>
             <div class="modal-footer">
@@ -186,10 +252,10 @@
                                 <th>Quantity</th>
                                 <th>Order Created At</th>
                                 <th>Fulfilled At</th>
+                                <th>Delivered At (Email Sent Time)</th>
+                                <!-- <th>Email Message</th> -->
+                                <th>Fulfillment Status</th>
                                 <th>Tracking #</th>
-                                <th>Delivery Status</th>
-                                <th>Delivered At</th>
-                                <th>Email Message</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -293,9 +359,9 @@
                         return '<input class="form-check-input row-checkbox" type="checkbox" value="' + data + '"' + checked + '>';
                     }
                 },
-                { data: 'order_id', render: function (data) { return '<small class="text-muted">' + data + '</small>'; } },
-                { data: 'order_name', render: function (data) { return '<strong>' + data + '</strong>'; } },
-                { data: 'sku', render: function (data) { return '<span class="badge bg-secondary">' + data + '</span>'; } },
+                { data: 'order_id', render: function (data) { return data || '-'; } },
+                { data: 'order_name', render: function (data) { return data || '-'; } },
+                { data: 'sku', render: function (data) { return data || '-'; } },
                 { data: 'quantity' },
                 { data: 'created_at' },
                 {
@@ -303,27 +369,29 @@
                     render: function (data) { return data || '-'; }
                 },
                 {
-                    data: 'tracking_number',
-                    render: function (data) {
-                        return data ? '<code>' + data + '</code>' : '<span class="text-muted fst-italic">None</span>';
-                    }
-                },
-                {
-                    data: 'delivery_status',
-                    render: function (data) {
-                        if (data === 'Delivered') return '<span class="badge bg-success">Delivered</span>';
-                        if (data === 'In-Transit') return '<span class="badge bg-info text-dark">In-Transit</span>';
-                        return '<span class="badge bg-warning text-dark">Pending</span>';
-                    }
-                },
-                {
                     data: 'shipping_email_time',
                     render: function (data) { return data || '-'; }
                 },
                 {
-                    data: 'shipping_email_message',
+                    data: 'delivery_status',
                     render: function (data) {
-                        return data ? '<small class="text-truncate d-inline-block" style="max-width: 150px;" title="' + data + '">' + data + '</small>' : '-';
+                        if (!data) return '<span class="text-muted fst-italic">N/A</span>';
+                        if (data === 'FULFILLED') return '<span class="badge bg-success">Fulfilled</span>';
+                        if (data === 'UNFULFILLED') return '<span class="badge bg-warning text-dark">Unfulfilled</span>';
+                        if (data === 'PARTIALLY_FULFILLED') return '<span class="badge bg-info text-dark">Partially Fulfilled</span>';
+                        return '<span class="badge bg-secondary">' + data + '</span>';
+                    }
+                },
+                // {
+                //     data: 'shipping_email_message',
+                //     render: function (data) {
+                //         return data ? '<small class="text-truncate d-inline-block" style="max-width: 150px;" title="' + data + '">' + data + '</small>' : '-';
+                //     }
+                // },
+                {
+                    data: 'tracking_number',
+                    render: function (data) {
+                        return data ? '<code>' + data + '</code>' : '<span class="text-muted fst-italic">None</span>';
                     }
                 }
             ],
@@ -484,10 +552,20 @@
             table.draw();
         });
 
+        // Show/hide Clear button based on SKU input
+        $('#sku').on('input', function () {
+            if ($(this).val().trim()) {
+                $('#btnClearFilter').show();
+            } else {
+                $('#btnClearFilter').hide();
+            }
+        });
+
         $('#btnClearFilter').on('click', function () {
             $('#start_date').val('');
             $('#end_date').val('');
             $('#sku').val('');
+            $('#btnClearFilter').hide();
             $('#btnExportAll').attr('href', '{{ url_for("export.export_csv") }}');
             table.draw();
         });
@@ -539,23 +617,99 @@
         // SYNC ORDERS — open modal with date pickers
         // =========================================================================
         $('#btnSyncOrders').on('click', function () {
-            // Clear previous dates and open modal
-            $('#sync_start_date').val('');
-            $('#sync_end_date').val('');
+            // Set max date to today (no future dates)
+            var today = new Date().toISOString().split('T')[0];
+            $('#sync_start_date').attr('max', today).val('');
+            $('#sync_end_date').attr('max', today).val('');
+            // Reset validation states
+            $('#sync_start_date, #sync_end_date').removeClass('is-invalid');
+            $('#syncDateError').hide();
             var modal = new bootstrap.Modal(document.getElementById('syncOrdersModal'));
             modal.show();
         });
 
+        // When start date changes, set min of end date
+        $('#sync_start_date').on('change', function () {
+            var startVal = $(this).val();
+            $(this).removeClass('is-invalid');
+            $('#syncDateError').hide();
+            if (startVal) {
+                $('#sync_end_date').attr('min', startVal);
+                // If end date is already set and is before start date, clear it
+                var endVal = $('#sync_end_date').val();
+                if (endVal && endVal < startVal) {
+                    $('#sync_end_date').val('').addClass('is-invalid');
+                    $('#sync_end_date_error').text('End date must be after start date');
+                }
+            } else {
+                $('#sync_end_date').removeAttr('min');
+            }
+        });
+
+        // When end date changes, set max of start date
+        $('#sync_end_date').on('change', function () {
+            var endVal = $(this).val();
+            $(this).removeClass('is-invalid');
+            $('#syncDateError').hide();
+            if (endVal) {
+                $('#sync_start_date').attr('max', endVal);
+                // If start date is already set and is after end date, clear it
+                var startVal = $('#sync_start_date').val();
+                if (startVal && startVal > endVal) {
+                    $('#sync_start_date').val('').addClass('is-invalid');
+                    $('#sync_start_date_error').text('Start date must be before end date');
+                }
+            } else {
+                // Reset max to today
+                var today = new Date().toISOString().split('T')[0];
+                $('#sync_start_date').attr('max', today);
+            }
+        });
+
         // Confirm Sync button inside modal
         $('#btnConfirmSync').on('click', function () {
+            var startDate = $('#sync_start_date').val();
+            var endDate = $('#sync_end_date').val();
+            var today = new Date().toISOString().split('T')[0];
+
+            // Reset validation
+            $('#sync_start_date, #sync_end_date').removeClass('is-invalid');
+            $('#syncDateError').hide();
+
+            // Validate: no future dates
+            if (startDate && startDate > today) {
+                $('#sync_start_date').addClass('is-invalid');
+                $('#sync_start_date_error').text('Cannot select a future date');
+                return;
+            }
+            if (endDate && endDate > today) {
+                $('#sync_end_date').addClass('is-invalid');
+                $('#sync_end_date_error').text('Cannot select a future date');
+                return;
+            }
+
+            // Validate: end date >= start date
+            if (startDate && endDate && endDate < startDate) {
+                $('#syncDateError').show();
+                $('#syncDateErrorMsg').text('End date cannot be before start date.');
+                $('#sync_end_date').addClass('is-invalid');
+                return;
+            }
+
+            // Validate: if only end date is provided without start date
+            if (!startDate && endDate) {
+                $('#syncDateError').show();
+                $('#syncDateErrorMsg').text('Please select a start date when specifying an end date.');
+                $('#sync_start_date').addClass('is-invalid');
+                return;
+            }
+
             var $btn = $(this);
             var originalHtml = $btn.html();
             $btn.html('<span class="spinner-border spinner-border-sm me-1"></span> Syncing...').prop('disabled', true);
 
             // Collect optional dates
             var syncData = {};
-            var startDate = $('#sync_start_date').val();
-            var endDate = $('#sync_end_date').val();
             if (startDate) syncData.start_date = startDate;
             if (endDate) syncData.end_date = endDate;
 
@@ -568,6 +722,11 @@
                     showToast(data.message, data.success ? 'success' : 'danger');
                     if (data.success) {
                         setTimeout(function () { table.draw(); }, 500);
+                        // Update sync info banner
+                        $('#syncDateRange').text(data.sync_start_date + ' \u2014 ' + data.sync_end_date);
+                        $('#syncOrderCount').text(data.count + ' orders');
+                        $('#syncTimestamp').text('Last synced: ' + data.synced_at);
+                        $('#syncInfoBanner').show();
                     }
                     // Close modal
                     bootstrap.Modal.getInstance(document.getElementById('syncOrdersModal')).hide();
@@ -592,10 +751,10 @@
         function startStatusPolling() {
             // Show the loader immediately when starting to poll
             $('#syncLoader').show();
-            
+
             // Clear any existing intervals
             if (pollInterval) clearInterval(pollInterval);
-            
+
             pollInterval = setInterval(checkSyncStatus, 2000); // Check every 2 seconds
         }
 
@@ -620,7 +779,7 @@
                 }
             });
         }
-        
+
         // Initial check on page load to see if a background job is already running
         checkSyncStatus();
 

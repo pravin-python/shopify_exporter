@@ -126,13 +126,13 @@ def get_orders():
             'order_name': order.order_name or '',
             'sku': item.sku or '',
             'quantity': item.quantity or 0,
-            'created_at': order.created_at.strftime('%Y-%m-%d %H:%M') if order.created_at else '',
-            'fulfilled_at': item.fulfilled_at.strftime('%Y-%m-%d %H:%M') if item.fulfilled_at else '',
+            'created_at': order.created_at.strftime('%d-%m-%Y %H:%M') if order.created_at else '',
+            'fulfilled_at': item.fulfilled_at.strftime('%d-%m-%Y %H:%M') if item.fulfilled_at else '',
             'tracking_number': item.tracking_number or '',
             'delivery_status': item.delivery_status or 'Pending',
-            'delivered_at': item.delivered_at.strftime('%Y-%m-%d %H:%M') if item.delivered_at else '',
+            'delivered_at': item.delivered_at.strftime('%d-%m-%Y %H:%M') if item.delivered_at else '',
             'shipping_email_message': item.shipping_email_message or '',
-            'shipping_email_time': item.shipping_email_time.strftime('%Y-%m-%d %H:%M') if item.shipping_email_time else '',
+            'shipping_email_time': item.shipping_email_time.strftime('%d-%m-%Y %H:%M') if item.shipping_email_time else '',
         })
 
     return jsonify({

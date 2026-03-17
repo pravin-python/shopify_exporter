@@ -4,6 +4,7 @@ Data loading is handled via AJAX through the /api/orders endpoint.
 """
 from flask import Blueprint, render_template, current_app
 from app.models.shop import Shop
+from app.models.sync_log import SyncLog
 
 
 dashboard_bp = Blueprint('dashboard', __name__)
@@ -21,8 +22,12 @@ def index():
         if existing and existing.access_token:
             shop_connected = True
 
+    # Get latest sync info
+    sync_log = SyncLog.query.order_by(SyncLog.synced_at.desc()).first()
+
     return render_template(
         'dashboard.html',
         shop_url=shop_url,
         shop_connected=shop_connected,
+        sync_log=sync_log,
     )

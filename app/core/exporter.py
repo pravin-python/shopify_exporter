@@ -18,13 +18,13 @@ def export_orders_to_csv(query_results):
         row = {
             "Shopify Order ID": str(order.shopify_order_id.split('/')[-1]) if order.shopify_order_id else "",
             "Order Name": order.order_name,
-            "Order Created": order.created_at.strftime("%Y-%m-%d %H:%M:%S") if order.created_at else "",
+            "Order Created": order.created_at.strftime("%d-%m-%Y %H:%M") if order.created_at else "",
             "SKU": item.sku,
             "Quantity": item.quantity,
-            "Fulfilled At": item.fulfilled_at.strftime("%Y-%m-%d %H:%M:%S") if item.fulfilled_at else "",
+            "Fulfilled At": item.fulfilled_at.strftime("%d-%m-%Y %H:%M") if item.fulfilled_at else "",
             "Tracking Number": item.tracking_number,
             "Delivery Status": item.delivery_status,
-            "Delivered At": item.shipping_email_time.strftime("%Y-%m-%d %H:%M:%S") if item.shipping_email_time else ""
+            "Delivered At": item.shipping_email_time.strftime("%d-%m-%Y %H:%M") if item.shipping_email_time else ""
         }
         flat_data.append(row)
         

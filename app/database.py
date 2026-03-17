@@ -6,6 +6,7 @@ def init_db():
     import app.models.order
     import app.models.order_item
     import app.models.shop
+    import app.models.sync_log
     
     db.drop_all()
     db.create_all()

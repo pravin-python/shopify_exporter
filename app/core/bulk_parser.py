@@ -7,6 +7,7 @@ from datetime import datetime
 from app.extensions import db
 from app.models.order import Order
 from app.models.order_item import OrderItem
+from app.models.sync_log import SyncLog
 
 
 def parse_and_store_bulk_data(orders_data):
@@ -42,6 +43,7 @@ def parse_and_store_bulk_data(orders_data):
     # Clear ALL existing data before inserting fresh orders
     OrderItem.query.delete()
     Order.query.delete()
+    SyncLog.query.delete()
     db.session.flush()
 
     for order_data in orders_data:
@@ -91,6 +93,7 @@ def parse_and_store_bulk_data(orders_data):
                         })
 
         # ----- Create Line Items -----
+        fulfillment_status = order_data.get('fulfillment_status', 'UNKNOWN')
         items = order_data.get('items', [])
         for idx, item_data in enumerate(items):
             sku = item_data.get('sku') or item_data.get('title', 'UNKNOWN')
@@ -103,6 +106,7 @@ def parse_and_store_bulk_data(orders_data):
                 order_id=order.id,
                 sku=sku,
                 quantity=item_data.get('quantity', 1),
+                delivery_status=fulfillment_status,
                 tracking_number=tracking_info.get('tracking_number'),
                 tracking_url=tracking_info.get('tracking_url'),
                 tracking_company=tracking_info.get('tracking_company'),

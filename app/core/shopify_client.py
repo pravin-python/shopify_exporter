@@ -26,7 +26,7 @@ class ShopifyClient:
 
         # Default last 7 days
         if not start_date:
-            start_date = datetime.utcnow() - timedelta(days=250)
+            start_date = datetime.utcnow() - timedelta(days=7)
         if not end_date:
             end_date = datetime.utcnow()
 
@@ -54,6 +54,7 @@ class ShopifyClient:
                     id
                     name
                     createdAt
+                    displayFulfillmentStatus
                     totalPriceSet {{
                         shopMoney {{
                             amount
@@ -133,11 +134,11 @@ class ShopifyClient:
                 for item in order.get("lineItems", {}).get("edges", []):
                     items.append(item["node"])
                     
-
                 orders_data.append({
                     "order_id": order["id"],
                     "order_name": order["name"],
                     "order_created_at": order["createdAt"],
+                    "fulfillment_status": order.get("displayFulfillmentStatus", "UNKNOWN"),
                     "fulfillment": fulfillments_data,
                     "items": items,
                 })
@@ -178,13 +179,13 @@ class ShopifyClient:
         if response.status_code != 200:
             return None
             
-        data = response.json()
+        data = response.json() 
         try:
             events = data["data"]["order"]["events"]["edges"]
             for edge in events:
                 node = edge["node"]
                 message = node.get("message", "").lower()
-                if message and "shipping update email" in message:
+                if message and "shipment delivered email" in message:
                     return {
                         "message": message,
                         "createdAt": node.get("createdAt")

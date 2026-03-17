@@ -5,8 +5,9 @@ from app.core.usps_client import USPSClient
 from app.core.bulk_parser import parse_and_store_bulk_data
 from app.models.order_item import OrderItem
 from app.models.shop import Shop
+from app.models.sync_log import SyncLog
 from app.extensions import db
-from datetime import datetime
+from datetime import datetime, timedelta
 
 sync_bp = Blueprint('sync', __name__)
 
@@ -46,10 +47,23 @@ def sync_orders():
         except ValueError:
             pass
     
+    # Calculate effective dates (same defaults as ShopifyClient)
+    effective_start = start_date if start_date else (datetime.utcnow() - timedelta(days=7))
+    effective_end = end_date if end_date else datetime.utcnow()
+
     try:
         orders = client.get_orders_with_tracking(start_date=start_date, end_date=end_date)
         orders_saved = parse_and_store_bulk_data(orders)
-        
+
+        # Save sync date range to database (old sync log already truncated in bulk_parser)
+        sync_log = SyncLog(
+            sync_start_date=effective_start,
+            sync_end_date=effective_end,
+            orders_synced=orders_saved,
+        )
+        db.session.add(sync_log)
+        db.session.commit()
+
     except Exception as e:
         return jsonify({
             "success": False,
@@ -115,7 +129,10 @@ def sync_orders():
     return jsonify({
         "success": True,
         "message": f"Successfully synced {orders_saved} orders. Email tracking is updating in the background.",
-        "count": orders_saved
+        "count": orders_saved,
+        "sync_start_date": effective_start.strftime('%d-%m-%Y %H:%M'),
+        "sync_end_date": effective_end.strftime('%d-%m-%Y %H:%M'),
+        "synced_at": datetime.utcnow().strftime('%d-%m-%Y %H:%M'),
     })
 
 @sync_bp.route('/delivery', methods=['POST'])

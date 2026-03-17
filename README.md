@@ -68,6 +68,8 @@ Copy-Item .env.example .env
 
 # Example .env copy command (Mac/Linux)
 cp .env.example .env
+python3 -c "import secrets; print(secrets.token_hex(24))"
+
 ```
 
 Fill in the `.env` file with your credentials:
