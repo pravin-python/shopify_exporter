@@ -318,6 +318,7 @@
         // SYNC RUNNING STATE — tracks whether background email fetch is active
         // =========================================================================
         let isSyncRunning = false;
+        let lastSyncPhase = '';     // tracks phase transitions (orders → emails)
         let tableRefreshInterval;  // auto-redraws table while sync is running
 
         function isSelected(id) {
@@ -482,7 +483,7 @@
                     render: function (data) {
                         if (data) return data;
                         if (isSyncRunning) {
-                            return '<span class="email-fetching-loader" title="Fetching email event...">' +
+                            return '<span class="email-fetching-loader" title="Fetching Delivered At (Email Sent Time) event...">' +
                                 '<span class="spinner-border spinner-border-sm text-warning" role="status" style="width:12px;height:12px;"></span>' +
                                 '<span class="text-muted ms-1" style="font-size:0.75rem;">Fetching...</span>' +
                                 '</span>';
@@ -955,6 +956,12 @@
                             $('#syncInfoBanner').show();
                         }
 
+                        // Detect phase transition: orders → emails
+                        if (lastSyncPhase === 'orders' && response.phase === 'emails') {
+                            showToast('<i class="fas fa-check-circle me-1"></i> Orders synced successfully! Now Fetching Delivered At (Email Sent Time) events...', 'success');
+                        }
+                        lastSyncPhase = response.phase;
+
                         // If this is the initial page-load check, kick off full polling
                         if (isInitialCheck) {
                             startStatusPolling();
@@ -968,7 +975,12 @@
                                 $('#syncOrderCount').text(response.details.count + ' orders');
                                 $('#syncTimestamp').text('Last synced: ' + response.details.synced_at);
                                 $('#syncInfoBanner').show();
+                                showToast('<i class="fas fa-check-circle me-1"></i> Sync complete! ' + response.details.count + ' orders synced with email events.', 'success');
+                            } else if (lastSyncPhase === 'emails') {
+                                // Email-only re-fetch completed
+                                showToast('<i class="fas fa-check-circle me-1"></i> Email events fetched successfully!', 'success');
                             }
+                            lastSyncPhase = '';
                             stopStatusPolling();
                         }
                         // If is_running=false on initial check: nothing to do
@@ -976,6 +988,7 @@
                 },
                 error: function () {
                     // On error, stop everything cleanly
+                    lastSyncPhase = '';
                     stopStatusPolling();
                 }
             });
