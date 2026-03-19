@@ -284,7 +284,7 @@ deactivate
 
 ## 10. Daily Usage Quick Reference
 
-Every time you want to use the application after initial setup:
+Once initial setup is done, you **do NOT** need to create the venv or pip install again. Just activate and run:
 
 ```cmd
 :: Step 1: Open Command Prompt in project folder
@@ -297,6 +297,33 @@ flask --app run run
 :: Step 4: Open browser → http://127.0.0.1:5000/
 :: Step 5: When done, press Ctrl+C to stop → type 'deactivate'
 ```
+
+**If using PowerShell:**
+```powershell
+# Activate virtual environment
+venv\Scripts\Activate.ps1
+
+# Start the server
+flask --app run run
+```
+
+> 💡 **Remember:** You only need to run `pip install -r requirements.txt` and `flask --app run init-db` once during the first-time setup. After that, just activate the venv and start the server.
+
+### 🗑️ Reset Database / Fresh Start
+
+If you want to **delete all synced data** and start fresh (remove all orders, emails, sync logs from the database), run:
+
+```cmd
+:: Step 1: Make sure venv is activated
+venv\Scripts\activate.bat
+
+:: Step 2: Re-initialize the database (this deletes all existing data)
+flask --app run init-db
+```
+
+This will drop and recreate all tables in `instance/shopify.db`. Your `.env` settings and Shopify connection will remain unchanged — you just need to sync orders again.
+
+> ⚠️ **Warning:** This permanently deletes all order data from the local database. Make sure to export any data you need before running this command.
 
 ---
 

@@ -41,9 +41,12 @@
                             <span class="badge rounded-pill text-bg-light border px-3 py-2" style="font-size: 0.78rem;">
                                 <span class="spinner-border spinner-border-sm text-primary me-1" role="status"
                                     aria-hidden="true" style="width: 12px; height: 12px;"></span>
-                                <span id="syncLoaderText" class="text-primary fw-semibold">Syncing in background...</span>
+                                <span id="syncLoaderText" class="text-primary fw-semibold">Syncing in
+                                    background...</span>
                             </span>
-                            <button id="btnStopSync" class="btn btn-sm btn-danger ms-1" style="font-size: 0.70rem; padding: 2px 8px; border-radius: 6px;" title="Stop Background Process">
+                            <button id="btnStopSync" class="btn btn-sm btn-danger ms-1"
+                                style="font-size: 0.70rem; padding: 2px 8px; border-radius: 6px;"
+                                title="Stop Background Process">
                                 <i class="fas fa-stop"></i> Stop
                             </button>
                         </span>
@@ -287,9 +290,17 @@
         opacity: 0.85;
         animation: emailCellPulse 1.6s ease-in-out infinite;
     }
+
     @keyframes emailCellPulse {
-        0%, 100% { opacity: 0.85; }
-        50%       { opacity: 0.45; }
+
+        0%,
+        100% {
+            opacity: 0.85;
+        }
+
+        50% {
+            opacity: 0.45;
+        }
     }
 </style>
 {% endblock %}
@@ -376,8 +387,12 @@
             stateSave: true,
             stateSaveCallback: function (settings, data) {
                 var params = new URLSearchParams(window.location.search);
-                params.set('start', data.start);
+                // Save human-readable page number (1-based) instead of raw offset
+                var pageNum = Math.floor(data.start / data.length) + 1;
+                params.set('page', pageNum);
                 params.set('length', data.length);
+                // Remove old 'start' param if present (cleanup from old URLs)
+                params.delete('start');
                 if (data.search && data.search.search) {
                     params.set('search', data.search.search);
                 } else {
@@ -411,9 +426,14 @@
             },
             stateLoadCallback: function (settings) {
                 var params = new URLSearchParams(window.location.search);
+                var length = parseInt(params.get('length'), 10) || 20;
+                // Convert page number (1-based) back to start offset
+                var page = parseInt(params.get('page'), 10) || 1;
+                if (page < 1) page = 1;
+                var start = (page - 1) * length;
                 var state = {
-                    start: parseInt(params.get('start'), 10) || 0,
-                    length: parseInt(params.get('length'), 10) || 20,
+                    start: start,
+                    length: length,
                     search: { search: params.get('search') || "" }
                 };
                 var orderCol = params.get('order_col');
@@ -463,9 +483,9 @@
                         if (data) return data;
                         if (isSyncRunning) {
                             return '<span class="email-fetching-loader" title="Fetching email event...">' +
-                                   '<span class="spinner-border spinner-border-sm text-warning" role="status" style="width:12px;height:12px;"></span>' +
-                                   '<span class="text-muted ms-1" style="font-size:0.75rem;">Fetching...</span>' +
-                                   '</span>';
+                                '<span class="spinner-border spinner-border-sm text-warning" role="status" style="width:12px;height:12px;"></span>' +
+                                '<span class="text-muted ms-1" style="font-size:0.75rem;">Fetching...</span>' +
+                                '</span>';
                         }
                         return '<span class="text-muted fst-italic">—</span>';
                     }
@@ -493,9 +513,9 @@
                     }
                 }
             ],
-            order: [[5, 'desc']],  // Default sort by Created At desc
+            order: [[5, 'asc']],  // Default sort by Created At desc or asc
             pageLength: 20,
-            lengthMenu: [[10, 20, 30, 40, 50], [10, 20, 30, 40, 50]],
+            lengthMenu: [[20, 50, 100, 250, 500], [20, 50, 100, 250, 500]],
             language: {
                 processing: '<div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div> Loading...',
                 emptyTable: 'No records found matching your criteria.',
@@ -758,7 +778,7 @@
                 },
                 error: function (xhr) {
                     var msg = 'Failed to start email re-fetch.';
-                    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+                    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) { }
                     showToast(msg, 'danger');
                 },
                 complete: function () {
@@ -970,7 +990,7 @@
         $('#btnStopSync').on('click', function () {
             var $btn = $(this);
             $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1" style="width:10px;height:10px;"></span> Stopping...');
-            
+
             $.ajax({
                 url: '{{ url_for("sync.cancel_sync") }}',
                 type: 'POST',

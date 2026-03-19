@@ -23,10 +23,12 @@ class ShopifyClient:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         on_page_fetched=None,
+        cancel_check=None,
     ) -> int:
         """
         Fetches orders with tracking info.
         If on_page_fetched callback is provided, it is called with the list of orders chunks per page.
+        If cancel_check callback is provided and returns True, the loop stops immediately.
         Returns the total number of orders fetched.
         """
         # Default last 7 days
@@ -43,6 +45,9 @@ class ShopifyClient:
         has_next_page = True
 
         while has_next_page:
+            # Check for cancellation before each API call
+            if cancel_check and cancel_check():
+                break
             orders_data = []
 
             after_part = f', after: "{cursor}"' if cursor else ""

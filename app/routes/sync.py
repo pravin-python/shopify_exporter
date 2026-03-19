@@ -134,7 +134,8 @@ def sync_orders():
                 total_orders = client.get_orders_with_tracking(
                     start_date=start_date, 
                     end_date=end_date,
-                    on_page_fetched=stream_page_to_db
+                    on_page_fetched=stream_page_to_db,
+                    cancel_check=lambda: sync_status["cancel_requested"],
                 )
 
                 # Phase 2: Emails
@@ -155,14 +156,17 @@ def sync_orders():
                             gid_to_db_id[order_gid] = db_order.id
                             
                     def fetch_single_event(order_gid):
+                        if sync_status["cancel_requested"]:
+                            return order_gid, None
                         return order_gid, client.get_order_shipping_email_event(order_gid)
                     
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                    executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
+                    try:
                         future_to_gid = {executor.submit(fetch_single_event, gid): gid for gid in gid_to_db_id.keys()}
                         for future in concurrent.futures.as_completed(future_to_gid):
                             if sync_status["cancel_requested"]:
                                 sync_status["message"] = "Stopping Emails..."
-                                # We deliberately stop pulling future results
+                                executor.shutdown(wait=False, cancel_futures=True)
                                 raise SyncCancelledException("Email sync cancelled by user.")
                             
                             try:
@@ -181,6 +185,8 @@ def sync_orders():
                                     db.session.commit()
                             except Exception as exc:
                                 print(f'Order fetch generated an exception: {exc}')
+                    finally:
+                        executor.shutdown(wait=False)
 
                 # Export details to the UI polling mechanism
                 sync_status["details"] = {
@@ -255,16 +261,20 @@ def sync_emails():
                 local_client = ShopifyClient(store, token)
 
                 def fetch_single_event(order_gid):
-                    # Only HTTP — no DB access here
+                    # Skip API call if cancel was already requested
+                    if sync_status["cancel_requested"]:
+                        return order_gid, None
                     return order_gid, local_client.get_order_shipping_email_event(order_gid)
 
                 # Run API calls concurrently and stream results to DB individually
                 updated_count = 0
-                with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
+                try:
                     future_to_gid = {executor.submit(fetch_single_event, gid): gid for gid in gid_to_db_id.keys()}
                     for future in concurrent.futures.as_completed(future_to_gid):
                         if sync_status["cancel_requested"]:
                             sync_status["message"] = "Stopping Emails..."
+                            executor.shutdown(wait=False, cancel_futures=True)
                             raise SyncCancelledException("Email sync cancelled by user.")
 
                         try:
@@ -284,6 +294,8 @@ def sync_emails():
                                 updated_count += 1
                         except Exception as exc:
                             print(f'Email fetch exception: {exc}')
+                finally:
+                    executor.shutdown(wait=False)
 
                 print(f'Email re-fetch complete: updated {updated_count} orders.')
             except SyncCancelledException as e:
