@@ -41,8 +41,11 @@
                             <span class="badge rounded-pill text-bg-light border px-3 py-2" style="font-size: 0.78rem;">
                                 <span class="spinner-border spinner-border-sm text-primary me-1" role="status"
                                     aria-hidden="true" style="width: 12px; height: 12px;"></span>
-                                Fetching emails...
+                                <span id="syncLoaderText" class="text-primary fw-semibold">Syncing in background...</span>
                             </span>
+                            <button id="btnStopSync" class="btn btn-sm btn-danger ms-1" style="font-size: 0.70rem; padding: 2px 8px; border-radius: 6px;" title="Stop Background Process">
+                                <i class="fas fa-stop"></i> Stop
+                            </button>
                         </span>
                     </div>
                 </div>
@@ -359,9 +362,67 @@
         // =========================================================================
         // DATATABLE INITIALIZATION (Server-Side Processing)
         // =========================================================================
+
+        // Pre-fill filter inputs from URL parameters so DataTables uses them on first load
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('start_date')) $('#start_date').val(urlParams.get('start_date'));
+        if (urlParams.has('end_date')) $('#end_date').val(urlParams.get('end_date'));
+        if (urlParams.has('sku_filter')) $('#sku').val(urlParams.get('sku_filter'));
+        if ($('#sku').val().trim()) $('#btnClearFilter').show();
+
         var table = $('#ordersTable').DataTable({
             processing: true,
             serverSide: true,
+            stateSave: true,
+            stateSaveCallback: function (settings, data) {
+                var params = new URLSearchParams(window.location.search);
+                params.set('start', data.start);
+                params.set('length', data.length);
+                if (data.search && data.search.search) {
+                    params.set('search', data.search.search);
+                } else {
+                    params.delete('search');
+                }
+
+                // Sorting
+                if (data.order && data.order.length > 0) {
+                    params.set('order_col', data.order[0][0]);
+                    params.set('order_dir', data.order[0][1]);
+                } else {
+                    params.delete('order_col');
+                    params.delete('order_dir');
+                }
+
+                // Custom filters
+                var startDate = $('#start_date').val();
+                if (startDate) params.set('start_date', startDate);
+                else params.delete('start_date');
+
+                var endDate = $('#end_date').val();
+                if (endDate) params.set('end_date', endDate);
+                else params.delete('end_date');
+
+                var sku = $('#sku').val();
+                if (sku) params.set('sku_filter', sku);
+                else params.delete('sku_filter');
+
+                var newUrl = window.location.pathname + '?' + params.toString();
+                window.history.replaceState(null, '', newUrl);
+            },
+            stateLoadCallback: function (settings) {
+                var params = new URLSearchParams(window.location.search);
+                var state = {
+                    start: parseInt(params.get('start'), 10) || 0,
+                    length: parseInt(params.get('length'), 10) || 20,
+                    search: { search: params.get('search') || "" }
+                };
+                var orderCol = params.get('order_col');
+                var orderDir = params.get('order_dir');
+                if (orderCol !== null && orderDir !== null) {
+                    state.order = [[parseInt(orderCol, 10), orderDir]];
+                }
+                return state;
+            },
             ajax: {
                 url: '{{ url_for("api.get_orders") }}',
                 type: 'GET',
@@ -798,15 +859,7 @@
                 data: JSON.stringify(syncData),
                 success: function (data) {
                     showToast(data.message, data.success ? 'success' : 'danger');
-                    if (data.success) {
-                        setTimeout(function () { table.draw(); }, 500);
-                        // Update sync info banner
-                        $('#syncDateRange').text(data.sync_start_date + ' \u2014 ' + data.sync_end_date);
-                        $('#syncOrderCount').text(data.count + ' orders');
-                        $('#syncTimestamp').text('Last synced: ' + data.synced_at);
-                        $('#syncInfoBanner').show();
-                    }
-                    // Close modal
+                    // Background sync started. Modal closes instantly, table auto-redraws via polling
                     bootstrap.Modal.getInstance(document.getElementById('syncOrdersModal')).hide();
                 },
                 error: function (xhr) {
@@ -867,8 +920,21 @@
                         // Sync is running: ensure loader and button state are correct
                         isSyncRunning = true;
                         $('#syncLoader').show();
+                        $('#btnStopSync').show().prop('disabled', false).html('<i class="fas fa-stop"></i> Stop');
+                        if (response.message) {
+                            $('#syncLoaderText').text(response.message);
+                        }
                         $('#btnSyncOrders').hide();
                         $('#btnFetchEmails').hide();
+
+                        // Update banner live if orders are currently being fetched!
+                        if (response.phase === 'orders' && response.current_count !== undefined) {
+                            $('#syncDateRange').text(response.sync_start_date + ' \u2014 ' + response.sync_end_date);
+                            $('#syncOrderCount').text(response.current_count + ' orders');
+                            $('#syncTimestamp').text('Sync in progress...');
+                            $('#syncInfoBanner').show();
+                        }
+
                         // If this is the initial page-load check, kick off full polling
                         if (isInitialCheck) {
                             startStatusPolling();
@@ -876,6 +942,13 @@
                     } else {
                         if (isSyncRunning || !isInitialCheck) {
                             // Sync just finished — stop everything and final-redraw
+                            if (response.details && response.details.count !== undefined) {
+                                // Background full-sync completed: update the success banner
+                                $('#syncDateRange').text(response.details.sync_start_date + ' \u2014 ' + response.details.sync_end_date);
+                                $('#syncOrderCount').text(response.details.count + ' orders');
+                                $('#syncTimestamp').text('Last synced: ' + response.details.synced_at);
+                                $('#syncInfoBanner').show();
+                            }
                             stopStatusPolling();
                         }
                         // If is_running=false on initial check: nothing to do
@@ -890,6 +963,26 @@
 
         // Initial check on page load to see if a background job is already running
         checkSyncStatus(true);
+
+        // =========================================================================
+        // CANCEL BACKGROUND SYNC
+        // =========================================================================
+        $('#btnStopSync').on('click', function () {
+            var $btn = $(this);
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1" style="width:10px;height:10px;"></span> Stopping...');
+            
+            $.ajax({
+                url: '{{ url_for("sync.cancel_sync") }}',
+                type: 'POST',
+                success: function (data) {
+                    showToast(data.message, data.success ? 'warning' : 'danger');
+                },
+                error: function () {
+                    showToast('Failed to send stop signal.', 'danger');
+                    $btn.prop('disabled', false).html('<i class="fas fa-stop"></i> Stop');
+                }
+            });
+        });
 
         // =========================================================================
         // SYNC DELIVERY

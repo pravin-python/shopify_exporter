@@ -22,8 +22,13 @@ class ShopifyClient:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-    ) -> List[Dict]:
-
+        on_page_fetched=None,
+    ) -> int:
+        """
+        Fetches orders with tracking info.
+        If on_page_fetched callback is provided, it is called with the list of orders chunks per page.
+        Returns the total number of orders fetched.
+        """
         # Default last 7 days
         if not start_date:
             start_date = datetime.utcnow() - timedelta(days=7)
@@ -33,11 +38,12 @@ class ShopifyClient:
         start_iso = start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
         end_iso = end_date.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        orders_data = []
+        total_orders_fetched = 0
         cursor = None
         has_next_page = True
 
         while has_next_page:
+            orders_data = []
 
             after_part = f', after: "{cursor}"' if cursor else ""
 
@@ -122,9 +128,9 @@ class ShopifyClient:
                 raise Exception(f"Shopify API Error: {response.text}")
 
             data = response.json()
-            orders = data["data"]["orders"]["edges"]
+            orders_edges = data["data"]["orders"]["edges"]
 
-            for edge in orders:
+            for edge in orders_edges:
                 order = edge["node"]
                 fulfillments_data = []
                 items = []
@@ -143,6 +149,12 @@ class ShopifyClient:
                     "items": items,
                 })
 
+            total_orders_fetched += len(orders_data)
+
+            # Fire the callback with just this page's data to stream into DB natively
+            if on_page_fetched and orders_data:
+                on_page_fetched(orders_data)
+
             # Pagination control
             page_info = data["data"]["orders"]["pageInfo"]
             has_next_page = page_info["hasNextPage"]
@@ -151,7 +163,7 @@ class ShopifyClient:
             # Shopify rate limit safe delay
             time.sleep(0.5)
 
-        return orders_data
+        return total_orders_fetched
 
     def get_order_shipping_email_event(self, order_gid: str) -> Optional[Dict]:
         """
@@ -186,7 +198,6 @@ class ShopifyClient:
                 node = edge["node"]
                 message = node.get("message", "").lower()
                 if message and "shipment delivered email" in message:
-                    print(message)
                     return {
                         "message": message,
                         "createdAt": node.get("createdAt")

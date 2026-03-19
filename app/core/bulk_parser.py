@@ -10,7 +10,7 @@ from app.models.order_item import OrderItem
 from app.models.sync_log import SyncLog
 
 
-def parse_and_store_bulk_data(orders_data):
+def parse_and_store_bulk_data(orders_data, clear_existing=True):
     """
     Parse order data from Shopify GraphQL API and store in database.
     
@@ -40,11 +40,12 @@ def parse_and_store_bulk_data(orders_data):
     """
     orders_saved = 0
 
-    # Clear ALL existing data before inserting fresh orders
-    OrderItem.query.delete()
-    Order.query.delete()
-    SyncLog.query.delete()
-    db.session.flush()
+    if clear_existing:
+        # Clear ALL existing data before inserting fresh orders
+        # (SyncLog is now managed directly by the background thread in sync.py)
+        OrderItem.query.delete()
+        Order.query.delete()
+        db.session.flush()
 
     for order_data in orders_data:
         shopify_order_id = order_data.get('order_id', '')
