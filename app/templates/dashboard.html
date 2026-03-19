@@ -34,8 +34,8 @@
                         </button>
                         <button id="btnFetchEmails" class="btn btn-outline-secondary btn-sm"
                             style="border-radius: 8px; padding: 6px 14px; font-weight: 500;"
-                            title="Re-fetch shipping email events for all orders already in the database">
-                            <i class="fas fa-envelope me-1"></i> Re-fetch Emails
+                            title="Re-fetch shipping Delivered Time for all orders already in the database">
+                            <i class="fas fa-envelope me-1"></i> Re-fetch Delivered Time
                         </button>
                         <span id="syncLoader" class="ms-2" style="display: none;">
                             <span class="badge rounded-pill text-bg-light border px-3 py-2" style="font-size: 0.78rem;">
@@ -483,7 +483,7 @@
                     render: function (data) {
                         if (data) return data;
                         if (isSyncRunning) {
-                            return '<span class="email-fetching-loader" title="Fetching Delivered At (Email Sent Time) event...">' +
+                            return '<span class="email-fetching-loader" title="Fetching Delivered Time event...">' +
                                 '<span class="spinner-border spinner-border-sm text-warning" role="status" style="width:12px;height:12px;"></span>' +
                                 '<span class="text-muted ms-1" style="font-size:0.75rem;">Fetching...</span>' +
                                 '</span>';
@@ -958,7 +958,7 @@
 
                         // Detect phase transition: orders → emails
                         if (lastSyncPhase === 'orders' && response.phase === 'emails') {
-                            showToast('<i class="fas fa-check-circle me-1"></i> Orders synced successfully! Now Fetching Delivered At (Email Sent Time) events...', 'success');
+                            showToast('<i class="fas fa-check-circle me-1"></i> Orders synced successfully! Now Fetching Delivered Time events...', 'success');
                         }
                         lastSyncPhase = response.phase;
 
@@ -978,7 +978,7 @@
                                 showToast('<i class="fas fa-check-circle me-1"></i> Sync complete! ' + response.details.count + ' orders synced with email events.', 'success');
                             } else if (lastSyncPhase === 'emails') {
                                 // Email-only re-fetch completed
-                                showToast('<i class="fas fa-check-circle me-1"></i> Email events fetched successfully!', 'success');
+                                showToast('<i class="fas fa-check-circle me-1"></i> Delivered Time fetched successfully!', 'success');
                             }
                             lastSyncPhase = '';
                             stopStatusPolling();

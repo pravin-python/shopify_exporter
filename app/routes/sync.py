@@ -140,7 +140,7 @@ def sync_orders():
 
                 # Phase 2: Emails
                 sync_status["phase"] = "emails"
-                sync_status["message"] = "Fetching Email Events..."
+                sync_status["message"] = "Fetching Delivered Time..."
 
                 # We need the full list of order GIDs for the background email fetch
                 orders_just_saved = []
@@ -165,9 +165,9 @@ def sync_orders():
                         future_to_gid = {executor.submit(fetch_single_event, gid): gid for gid in gid_to_db_id.keys()}
                         for future in concurrent.futures.as_completed(future_to_gid):
                             if sync_status["cancel_requested"]:
-                                sync_status["message"] = "Stopping Emails..."
+                                sync_status["message"] = "Stopping Delivered Time..."
                                 executor.shutdown(wait=False, cancel_futures=True)
-                                raise SyncCancelledException("Email sync cancelled by user.")
+                                raise SyncCancelledException("Delivered Time sync cancelled by user.")
                             
                             try:
                                 order_gid, email_event = future.result()
@@ -256,7 +256,7 @@ def sync_emails():
             sync_status["is_running"] = True
             sync_status["cancel_requested"] = False
             sync_status["phase"] = "emails"
-            sync_status["message"] = "Fetching Email Events..."
+            sync_status["message"] = "Fetching Delivered Time..."
             try:
                 local_client = ShopifyClient(store, token)
 
@@ -273,9 +273,9 @@ def sync_emails():
                     future_to_gid = {executor.submit(fetch_single_event, gid): gid for gid in gid_to_db_id.keys()}
                     for future in concurrent.futures.as_completed(future_to_gid):
                         if sync_status["cancel_requested"]:
-                            sync_status["message"] = "Stopping Emails..."
+                            sync_status["message"] = "Stopping Delivered Time..."
                             executor.shutdown(wait=False, cancel_futures=True)
-                            raise SyncCancelledException("Email sync cancelled by user.")
+                            raise SyncCancelledException("Delivered Time sync cancelled by user.")
 
                         try:
                             order_gid, email_event = future.result()
@@ -293,15 +293,15 @@ def sync_emails():
                                 db.session.commit()
                                 updated_count += 1
                         except Exception as exc:
-                            print(f'Email fetch exception: {exc}')
+                            print(f'Delivered Time fetch exception: {exc}')
                 finally:
                     executor.shutdown(wait=False)
 
-                print(f'Email re-fetch complete: updated {updated_count} orders.')
+                print(f'Delivered Time re-fetch complete: updated {updated_count} orders.')
             except SyncCancelledException as e:
-                print(f"Email sync cancelled: {e}")
+                print(f"Delivered Time sync cancelled: {e}")
             except Exception as e:
-                print(f'Email re-fetch error: {e}')
+                print(f'Delivered Time re-fetch error: {e}')
                 db.session.rollback()
             finally:
                 sync_status["is_running"] = False
@@ -318,7 +318,7 @@ def sync_emails():
 
     return jsonify({
         "success": True,
-        "message": f"Re-fetching emails for {len(gid_to_db_id)} orders in the background.",
+        "message": f"Re-fetching Delivered Time for {len(gid_to_db_id)} orders in the background.",
         "count": len(gid_to_db_id),
     })
 
