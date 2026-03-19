@@ -32,6 +32,11 @@
                             style="border-radius: 8px; padding: 6px 14px; font-weight: 500;">
                             <i class="fas fa-sync-alt me-1"></i> Sync Orders
                         </button>
+                        <button id="btnFetchEmails" class="btn btn-outline-secondary btn-sm"
+                            style="border-radius: 8px; padding: 6px 14px; font-weight: 500;"
+                            title="Re-fetch shipping email events for all orders already in the database">
+                            <i class="fas fa-envelope me-1"></i> Re-fetch Emails
+                        </button>
                         <span id="syncLoader" class="ms-2" style="display: none;">
                             <span class="badge rounded-pill text-bg-light border px-3 py-2" style="font-size: 0.78rem;">
                                 <span class="spinner-border spinner-border-sm text-primary me-1" role="status"
@@ -269,6 +274,23 @@
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Pulse animation for email-fetching loader cells in the DataTable */
+    .email-fetching-loader {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        opacity: 0.85;
+        animation: emailCellPulse 1.6s ease-in-out infinite;
+    }
+    @keyframes emailCellPulse {
+        0%, 100% { opacity: 0.85; }
+        50%       { opacity: 0.45; }
+    }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
     $(document).ready(function () {
@@ -277,6 +299,12 @@
         // GLOBAL SELECTION STATE — persists across page changes
         // =========================================================================
         let selectedIds = [];
+
+        // =========================================================================
+        // SYNC RUNNING STATE — tracks whether background email fetch is active
+        // =========================================================================
+        let isSyncRunning = false;
+        let tableRefreshInterval;  // auto-redraws table while sync is running
 
         function isSelected(id) {
             return selectedIds.indexOf(id) !== -1;
@@ -370,7 +398,16 @@
                 },
                 {
                     data: 'shipping_email_time',
-                    render: function (data) { return data || '-'; }
+                    render: function (data) {
+                        if (data) return data;
+                        if (isSyncRunning) {
+                            return '<span class="email-fetching-loader" title="Fetching email event...">' +
+                                   '<span class="spinner-border spinner-border-sm text-warning" role="status" style="width:12px;height:12px;"></span>' +
+                                   '<span class="text-muted ms-1" style="font-size:0.75rem;">Fetching...</span>' +
+                                   '</span>';
+                        }
+                        return '<span class="text-muted fst-italic">—</span>';
+                    }
                 },
                 {
                     data: 'delivery_status',
@@ -409,9 +446,18 @@
                 // Restore checkbox state after each draw (page change, sort, etc.)
                 restoreCheckboxState();
 
-                // Hide pagination if only 1 page
                 var api = this.api();
                 var pageInfo = api.page.info();
+
+                // Hide/Show Re-fetch Emails button based on whether table has data
+                if (pageInfo.recordsTotal === 0) {
+                    $('#btnFetchEmails').hide();
+                } else if (!isSyncRunning) {
+                    // Only show if we're not currently syncing
+                    $('#btnFetchEmails').show();
+                }
+
+                // Hide pagination if only 1 page
                 var $paginationWrapper = $(api.table().container()).find('.dataTables_paginate');
                 if (pageInfo.pages <= 1) {
                     $paginationWrapper.hide();
@@ -628,6 +674,38 @@
             modal.show();
         });
 
+        // =========================================================================
+        // RE-FETCH EMAILS — triggers background email-event fetch for all DB orders
+        // =========================================================================
+        $('#btnFetchEmails').on('click', function () {
+            var $btn = $(this);
+            var originalHtml = $btn.html();
+            $btn.html('<span class="spinner-border spinner-border-sm me-1"></span> Starting...').prop('disabled', true);
+
+            $.ajax({
+                url: '{{ url_for("sync.sync_emails") }}',
+                type: 'POST',
+                contentType: 'application/json',
+                success: function (data) {
+                    showToast(data.message, data.success ? 'success' : 'warning');
+                    if (data.success) {
+                        // Hide both buttons and start polling
+                        $('#btnSyncOrders').hide();
+                        $('#btnFetchEmails').hide();
+                        startStatusPolling();
+                    }
+                },
+                error: function (xhr) {
+                    var msg = 'Failed to start email re-fetch.';
+                    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+                    showToast(msg, 'danger');
+                },
+                complete: function () {
+                    $btn.html(originalHtml).prop('disabled', false);
+                }
+            });
+        });
+
         // When start date changes, set min of end date
         $('#sync_start_date').on('change', function () {
             var startVal = $(this).val();
@@ -738,50 +816,80 @@
                 },
                 complete: function () {
                     $btn.html(originalHtml).prop('disabled', false);
+                    // Hide both buttons while background email fetching runs
+                    $('#btnSyncOrders').hide();
+                    $('#btnFetchEmails').hide();
                     startStatusPolling();
                 }
             });
         });
 
         // =========================================================================
-        // POLLING SYNC STATUS
+        // POLLING SYNC STATUS + TABLE AUTO-REFRESH
         // =========================================================================
         let pollInterval;
 
         function startStatusPolling() {
+            isSyncRunning = true;
             // Show the loader immediately when starting to poll
             $('#syncLoader').show();
 
             // Clear any existing intervals
             if (pollInterval) clearInterval(pollInterval);
+            if (tableRefreshInterval) clearInterval(tableRefreshInterval);
 
-            pollInterval = setInterval(checkSyncStatus, 2000); // Check every 2 seconds
+            // Poll sync status every 2 seconds
+            pollInterval = setInterval(checkSyncStatus, 2000);
+
+            // Auto-redraw table every 3 seconds so email times appear in real-time
+            tableRefreshInterval = setInterval(function () {
+                table.draw(false); // retain page position
+            }, 3000);
         }
 
-        function checkSyncStatus() {
+        function stopStatusPolling() {
+            isSyncRunning = false;
+            clearInterval(pollInterval);
+            clearInterval(tableRefreshInterval);
+            $('#syncLoader').hide();
+            $('#btnSyncOrders').show();
+            $('#btnFetchEmails').show();
+            // Final redraw to show the last batch of data
+            table.draw(false);
+        }
+
+        function checkSyncStatus(isInitialCheck) {
             $.ajax({
                 url: '{{ url_for("api.get_sync_status") }}',
                 type: 'GET',
                 success: function (response) {
                     if (response.is_running) {
+                        // Sync is running: ensure loader and button state are correct
+                        isSyncRunning = true;
                         $('#syncLoader').show();
+                        $('#btnSyncOrders').hide();
+                        $('#btnFetchEmails').hide();
+                        // If this is the initial page-load check, kick off full polling
+                        if (isInitialCheck) {
+                            startStatusPolling();
+                        }
                     } else {
-                        // Sync finished, stop polling and redraw datatable
-                        $('#syncLoader').hide();
-                        clearInterval(pollInterval);
-                        table.draw(false); // Retain pagination on redraw
+                        if (isSyncRunning || !isInitialCheck) {
+                            // Sync just finished — stop everything and final-redraw
+                            stopStatusPolling();
+                        }
+                        // If is_running=false on initial check: nothing to do
                     }
                 },
                 error: function () {
-                    // On error, let's stop polling to prevent infinite error loops
-                    $('#syncLoader').hide();
-                    clearInterval(pollInterval);
+                    // On error, stop everything cleanly
+                    stopStatusPolling();
                 }
             });
         }
 
         // Initial check on page load to see if a background job is already running
-        checkSyncStatus();
+        checkSyncStatus(true);
 
         // =========================================================================
         // SYNC DELIVERY

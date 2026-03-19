@@ -18,6 +18,15 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URI') or \
         'sqlite:///' + os.path.join(INSTANCE_PATH, 'shopify.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Enable WAL mode so concurrent reads don't get blocked by background writes
+    # Also set a 30-second busy timeout before raising "database is locked"
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "connect_args": {
+            "check_same_thread": False,
+            "timeout": 30,
+        },
+        "pool_pre_ping": True,
+    }
     
     # Shopify Configuration
     SHOPIFY_STORE = os.environ.get('SHOPIFY_STORE')

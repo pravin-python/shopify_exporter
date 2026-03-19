@@ -186,6 +186,7 @@ class ShopifyClient:
                 node = edge["node"]
                 message = node.get("message", "").lower()
                 if message and "shipment delivered email" in message:
+                    print(message)
                     return {
                         "message": message,
                         "createdAt": node.get("createdAt")
