@@ -88,6 +88,7 @@ def sync_orders():
             sync_status["cancel_requested"] = False
             sync_status["phase"] = "orders"
             sync_status["message"] = "Fetching Shopify Orders..."
+            sync_status["error"] = None
             sync_status["details"] = {}
             sync_status["current_count"] = 0
             sync_status["sync_start_date"] = effective_start.strftime('%d-%m-%Y')
@@ -201,6 +202,11 @@ def sync_orders():
             except Exception as e:
                 print(f"Background sync error: {e}")
                 db.session.rollback()
+                error_str = str(e)
+                if "Invalid API key or access token" in error_str:
+                    sync_status["error"] = "Shopify Token Expired or Invalid. Please re-connect the Shopify store."
+                else:
+                    sync_status["error"] = f"Background sync error: {error_str}"
             finally:
                 sync_status["is_running"] = False
                 sync_status["cancel_requested"] = False
@@ -257,6 +263,7 @@ def sync_emails():
             sync_status["cancel_requested"] = False
             sync_status["phase"] = "emails"
             sync_status["message"] = "Fetching Delivered Time..."
+            sync_status["error"] = None
             try:
                 local_client = ShopifyClient(store, token)
 
@@ -303,6 +310,11 @@ def sync_emails():
             except Exception as e:
                 print(f'Delivered Time re-fetch error: {e}')
                 db.session.rollback()
+                error_str = str(e)
+                if "Invalid API key or access token" in error_str:
+                    sync_status["error"] = "Shopify Token Expired or Invalid. Please re-connect the Shopify store."
+                else:
+                    sync_status["error"] = f"Delivered Time re-fetch error: {error_str}"
             finally:
                 sync_status["is_running"] = False
                 sync_status["cancel_requested"] = False

@@ -18,7 +18,8 @@ sync_status = {
     "details": {},
     "current_count": 0,
     "sync_start_date": "",
-    "sync_end_date": ""
+    "sync_end_date": "",
+    "error": None
 }
 
 @api_bp.route('/sync/status')

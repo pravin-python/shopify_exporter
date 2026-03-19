@@ -968,8 +968,10 @@
                         }
                     } else {
                         if (isSyncRunning || !isInitialCheck) {
-                            // Sync just finished — stop everything and final-redraw
-                            if (response.details && response.details.count !== undefined) {
+                            // Sync just finished or crashed — stop everything and final-redraw
+                            if (response.error) {
+                                showToast('<i class="fas fa-exclamation-triangle me-1"></i> ' + response.error, 'danger');
+                            } else if (response.details && response.details.count !== undefined) {
                                 // Background full-sync completed: update the success banner
                                 $('#syncDateRange').text(response.details.sync_start_date + ' \u2014 ' + response.details.sync_end_date);
                                 $('#syncOrderCount').text(response.details.count + ' orders');
