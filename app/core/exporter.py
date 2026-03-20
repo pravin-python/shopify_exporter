@@ -1,3 +1,4 @@
+import csv
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
@@ -89,11 +90,19 @@ def export_orders_to_csv(query_results):
             "Delivered At": format_date(item.shipping_email_time),
         }
         flat_data.append(row)
-        
+
     df = pd.DataFrame(flat_data)
     
+    # Prevent Excel from auto-formatting dates and long numbers
+    # Tab prefix (\t) forces Excel to treat cells as plain text
+    excel_text_columns = ['Order Created', 'Fulfilled At', 'Delivered At',
+                          'Shopify Order ID', 'Tracking Number']
+    for col in excel_text_columns:
+        if col in df.columns:
+            df[col] = df[col].apply(lambda x: '\t' + str(x) if x else '')
+
     output = BytesIO()
-    df.to_csv(output, index=False)
+    df.to_csv(output, index=False, quoting=csv.QUOTE_ALL)
     output.seek(0)
     
     return output
