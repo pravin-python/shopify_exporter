@@ -208,7 +208,7 @@
             </div>
             <div class="d-flex align-items-center gap-2">
                 <button class="btn btn-sm btn-success" id="btnExportSelected">
-                    <i class="fas fa-file-csv me-1"></i> Export Selected
+                <i class="fas fa-file-excel me-1"></i> Export Selected
                 </button>
                 <button class="btn btn-sm btn-outline-light" id="btnClearSelection">
                     <i class="fas fa-times me-1"></i> Clear Selection
@@ -244,7 +244,7 @@
                     </div>
                     <a href="{{ url_for('export.export_csv') }}" class="btn btn-outline-success btn-sm"
                         id="btnExportAll">
-                        <i class="fas fa-file-csv me-1"></i> Export All
+                        <i class="fas fa-file-excel me-1"></i> Export All
                     </a>
                 </div>
             </div>
@@ -726,7 +726,7 @@
                     var url = window.URL.createObjectURL(blob);
                     var a = document.createElement('a');
                     a.href = url;
-                    a.download = 'shopify_orders_selected_export.csv';
+                    a.download = 'shopify_orders_selected_export.xlsx';
                     document.body.appendChild(a);
                     a.click();
                     a.remove();
