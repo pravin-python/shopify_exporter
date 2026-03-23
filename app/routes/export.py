@@ -5,7 +5,7 @@ Supports both 'Export All' (with filters) and 'Export Selected' (by IDs).
 from flask import Blueprint, request, send_file, jsonify
 from app.models.order import Order
 from app.models.order_item import OrderItem
-from app.core.exporter import export_orders_to_csv
+from app.core.exporter import export_orders_to_xlsx
 from datetime import datetime
 
 export_bp = Blueprint('export', __name__)
@@ -13,7 +13,8 @@ export_bp = Blueprint('export', __name__)
 
 @export_bp.route('/')
 def export_csv():
-    """Export all orders matching the current filters as CSV."""
+    """Export all orders matching the current filters as XLSX."""
+    print("======= XLSX EXPORT CODE IS RUNNING =======")
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     sku_filter = request.args.get('sku')
@@ -37,13 +38,13 @@ def export_csv():
     query = query.order_by(Order.created_at.desc())
     results = query.with_entities(Order, OrderItem).all()
 
-    csv_buffer = export_orders_to_csv(results)
+    xlsx_buffer = export_orders_to_xlsx(results)
 
     return send_file(
-        csv_buffer,
-        mimetype='text/csv',
+        xlsx_buffer,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
-        download_name='shopify_orders_export.csv'
+        download_name='shopify_orders_export.xlsx'
     )
 
 
@@ -69,11 +70,11 @@ def export_selected():
     )
     results = query.with_entities(Order, OrderItem).all()
 
-    csv_buffer = export_orders_to_csv(results)
+    xlsx_buffer = export_orders_to_xlsx(results)
 
     return send_file(
-        csv_buffer,
-        mimetype='text/csv',
+        xlsx_buffer,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
-        download_name='shopify_orders_selected_export.csv'
+        download_name='shopify_orders_selected_export.xlsx'
     )

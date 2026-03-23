@@ -1,11 +1,10 @@
-import csv
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
 
 
 # Target format for all dates in CSV
-DATE_FORMAT = "%d-%m-%Y %H:%M"
+DATE_FORMAT = "%d/%m/%Y %H:%M"
 
 # Common date string formats to try when parsing string dates
 _DATE_PARSE_FORMATS = [
@@ -31,7 +30,7 @@ _DATE_PARSE_FORMATS = [
 
 def format_date(value):
     """
-    Normalize any date value (datetime object or string) to DD-MM-YYYY HH:MM format.
+    Normalize any date value (datetime object or string) to DD/MM/YYYY HH:MM format.
     Returns empty string if value is None/empty or unparseable.
     """
     if not value:
@@ -64,10 +63,10 @@ def format_date(value):
     return date_str
 
 
-def export_orders_to_csv(query_results):
+def export_orders_to_xlsx(query_results):
     """
-    Takes a list of Order/OrderItem tuples or dicts 
-    and returns a BytesIO CSV buffer.
+    Takes a list of Order/OrderItem tuples
+    and returns a BytesIO XLSX buffer.
     """
     if not query_results:
         return BytesIO(b"")
@@ -75,8 +74,6 @@ def export_orders_to_csv(query_results):
     # Flatten the data structure
     flat_data = []
     
-    # We expect query_results to be tuples from SQLAlchemy join: (Order, OrderItem)
-    # Using explicit mapping to easily map to CSV
     for order, item in query_results:
         row = {
             "Shopify Order ID": str(order.shopify_order_id.split('/')[-1]) if order.shopify_order_id else "",
@@ -93,16 +90,15 @@ def export_orders_to_csv(query_results):
 
     df = pd.DataFrame(flat_data)
     
-    # Prevent Excel from auto-formatting dates and long numbers
-    # Tab prefix (\t) forces Excel to treat cells as plain text
-    excel_text_columns = ['Order Created', 'Fulfilled At', 'Delivered At',
-                          'Shopify Order ID', 'Tracking Number']
-    for col in excel_text_columns:
+    # Ensure date columns are clean strings
+    date_columns = ['Order Created', 'Fulfilled At', 'Delivered At']
+    for col in date_columns:
         if col in df.columns:
-            df[col] = df[col].apply(lambda x: '\t' + str(x) if x else '')
+            df[col] = df[col].apply(lambda x: str(x).strip() if x else '')
 
     output = BytesIO()
-    df.to_csv(output, index=False, quoting=csv.QUOTE_ALL)
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Orders')
     output.seek(0)
     
     return output
