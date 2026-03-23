@@ -8,6 +8,7 @@ from app.models.shop import Shop
 from app.models.sync_log import SyncLog
 from app.extensions import db
 from datetime import datetime, timedelta
+from app.core.timezone_utils import utc_to_pt, now_pt
 
 class SyncCancelledException(Exception):
     pass
@@ -178,9 +179,9 @@ def sync_orders():
                                     for item in items:
                                         item.shipping_email_message = email_event["message"]
                                         try:
-                                            item.shipping_email_time = datetime.fromisoformat(
+                                            item.shipping_email_time = utc_to_pt(datetime.fromisoformat(
                                                 email_event["createdAt"].replace('Z', '+00:00')
-                                            ).replace(tzinfo=None)
+                                            ))
                                         except (ValueError, AttributeError):
                                             pass
                                     db.session.commit()
@@ -194,7 +195,7 @@ def sync_orders():
                     "count": total_orders_saved,
                     "sync_start_date": effective_start.strftime('%d-%m-%Y %H:%M'),
                     "sync_end_date": effective_end.strftime('%d-%m-%Y %H:%M'),
-                    "synced_at": datetime.utcnow().strftime('%d-%m-%Y %H:%M')
+                    "synced_at": now_pt().strftime('%d-%m-%Y %H:%M')
                 }
             except SyncCancelledException as e:
                 print(f"Background sync cancelled: {e}")
@@ -292,9 +293,9 @@ def sync_emails():
                                 for item in items:
                                     item.shipping_email_message = email_event["message"]
                                     try:
-                                        item.shipping_email_time = datetime.fromisoformat(
+                                        item.shipping_email_time = utc_to_pt(datetime.fromisoformat(
                                             email_event["createdAt"].replace('Z', '+00:00')
-                                        ).replace(tzinfo=None)
+                                        ))
                                     except (ValueError, AttributeError):
                                         pass
                                 db.session.commit()

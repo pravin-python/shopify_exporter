@@ -4,6 +4,7 @@ Parses the list of order dicts from ShopifyClient.get_orders_with_tracking()
 and stores them in Order + OrderItem tables with proper relationships.
 """
 from datetime import datetime
+from app.core.timezone_utils import utc_to_pt, now_pt
 from app.extensions import db
 from app.models.order import Order
 from app.models.order_item import OrderItem
@@ -55,11 +56,11 @@ def parse_and_store_bulk_data(orders_data, clear_existing=True):
         # ----- Create Order -----
         created_at_str = order_data.get('order_created_at', '')
         try:
-            created_at = datetime.fromisoformat(
+            created_at = utc_to_pt(datetime.fromisoformat(
                 created_at_str.replace('Z', '+00:00')
-            ).replace(tzinfo=None)
+            ))
         except (ValueError, AttributeError):
-            created_at = datetime.utcnow()
+            created_at = now_pt()
 
         order = Order(
             shopify_order_id=shopify_order_id,
@@ -77,9 +78,9 @@ def parse_and_store_bulk_data(orders_data, clear_existing=True):
                 fulfilled_at = None
                 if created_at_str:
                     try:
-                        fulfilled_at = datetime.fromisoformat(
+                        fulfilled_at = utc_to_pt(datetime.fromisoformat(
                             created_at_str.replace('Z', '+00:00')
-                        ).replace(tzinfo=None)
+                        ))
                     except (ValueError, AttributeError):
                         pass
 
