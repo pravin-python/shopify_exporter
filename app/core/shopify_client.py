@@ -134,7 +134,6 @@ class ShopifyClient:
                 raise Exception(f"Shopify API Error: {response.text}")
 
             data = response.json()
-            print(data)
             orders_edges = data["data"]["orders"]["edges"]
 
             for edge in orders_edges:
