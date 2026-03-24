@@ -262,6 +262,7 @@
                                 <th>SKU</th>
                                 <th>Quantity</th>
                                 <th>Order Created At</th>
+                                <th>Payment Status</th>
                                 <th>Fulfilled At</th>
                                 <th>Delivered At (Email Sent Time)</th>
                                 <!-- <th>Email Message</th> -->
@@ -474,6 +475,18 @@
                 { data: 'sku', render: function (data) { return data || '-'; } },
                 { data: 'quantity' },
                 { data: 'created_at' },
+                {
+                    data: 'payment_status',
+                    render: function (data) {
+                        if (!data || data === 'UNKNOWN') return '<span class="text-muted fst-italic">Unknown</span>';
+                        if (data === 'PAID') return '<span class="badge bg-success">Paid</span>';
+                        if (data === 'PENDING') return '<span class="badge bg-warning text-dark">Pending</span>';
+                        if (data === 'REFUNDED') return '<span class="badge bg-info text-dark">Refunded</span>';
+                        if (data === 'PARTIALLY_REFUNDED') return '<span class="badge bg-info text-dark">Partially Refunded</span>';
+                        if (data === 'VOIDED') return '<span class="badge bg-danger">Voided</span>';
+                        return '<span class="badge bg-secondary">' + data + '</span>';
+                    }
+                },
                 {
                     data: 'fulfilled_at',
                     render: function (data) { return data || '-'; }

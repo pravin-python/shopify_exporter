@@ -97,11 +97,11 @@ def get_orders():
             query = query.filter(OrderItem.sku.in_(skus))
 
     # Apply global search (across key text columns)
-    if search_value:
         search_pattern = f"%{search_value}%"
         query = query.filter(
             (Order.order_name.ilike(search_pattern)) |
             (Order.shopify_order_id.ilike(search_pattern)) |
+            (Order.payment_status.ilike(search_pattern)) |
             (OrderItem.sku.ilike(search_pattern)) |
             (OrderItem.tracking_number.ilike(search_pattern)) |
             (OrderItem.delivery_status.ilike(search_pattern))
@@ -133,6 +133,7 @@ def get_orders():
             'sku': item.sku or '',
             'quantity': item.quantity or 0,
             'created_at': order.created_at.strftime('%d-%m-%Y %H:%M') if order.created_at else '',
+            'payment_status': order.payment_status or 'UNKNOWN',
             'fulfilled_at': item.fulfilled_at.strftime('%d-%m-%Y %H:%M') if item.fulfilled_at else '',
             'tracking_number': item.tracking_number or '',
             'delivery_status': item.delivery_status or 'Pending',

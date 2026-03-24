@@ -66,6 +66,7 @@ def parse_and_store_bulk_data(orders_data, clear_existing=True):
             shopify_order_id=shopify_order_id,
             order_name=order_data.get('order_name', ''),
             created_at=created_at,
+            payment_status=order_data.get('payment_status', 'UNKNOWN'),
         )
         db.session.add(order)
         db.session.flush()  # Get the DB-generated id

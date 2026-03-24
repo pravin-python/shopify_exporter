@@ -66,6 +66,7 @@ class ShopifyClient:
                     name
                     createdAt
                     displayFulfillmentStatus
+                    displayFinancialStatus
                     totalPriceSet {{
                         shopMoney {{
                             amount
@@ -133,6 +134,7 @@ class ShopifyClient:
                 raise Exception(f"Shopify API Error: {response.text}")
 
             data = response.json()
+            print(data)
             orders_edges = data["data"]["orders"]["edges"]
 
             for edge in orders_edges:
@@ -150,6 +152,7 @@ class ShopifyClient:
                     "order_name": order["name"],
                     "order_created_at": order["createdAt"],
                     "fulfillment_status": order.get("displayFulfillmentStatus", "UNKNOWN"),
+                    "payment_status": order.get("displayFinancialStatus", "UNKNOWN"),
                     "fulfillment": fulfillments_data,
                     "items": items,
                 })
