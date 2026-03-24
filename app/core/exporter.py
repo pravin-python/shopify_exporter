@@ -79,6 +79,7 @@ def export_orders_to_xlsx(query_results):
             "Shopify Order ID": str(order.shopify_order_id.split('/')[-1]) if order.shopify_order_id else "",
             "Order Name": order.order_name,
             "Order Created": format_date(order.created_at),
+            "Payment Status": order.payment_status or "UNKNOWN",
             "SKU": item.sku,
             "Quantity": item.quantity,
             "Fulfilled At": format_date(item.fulfilled_at),

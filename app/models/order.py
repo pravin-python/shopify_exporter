@@ -9,6 +9,7 @@ class Order(db.Model):
     shopify_order_id = db.Column(db.String(100), unique=True, nullable=False, index=True)
     order_name = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=now_pt, nullable=False)
+    payment_status = db.Column(db.String(50), nullable=True, default="UNKNOWN")
     
     # Relationship to OrderItem
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
