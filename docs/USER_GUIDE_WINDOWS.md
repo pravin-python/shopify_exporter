@@ -168,7 +168,8 @@ SHOPIFY_REDIRECT_URI=http://localhost:5000/auth/callback
 - **SHOPIFY_API_KEY & SHOPIFY_API_SECRET**: Go to [Shopify Partner Dashboard](https://partners.shopify.com/) → Your App → **API credentials**
 - **SECRET_KEY**: A secure random string used by Flask to sign session cookies and protect against tampering. You should generate a strong one — **do not use a simple string in production.**
 
-#### 🔑 How to generate a secure SECRET_KEY
+#### 🔑 (Optional) How to generate a secure SECRET_KEY
+> 💡 **Note:** Generating a custom key is highly recommended for **Production/Deployment**. For local usage, the default value in `.env` is usually sufficient.
 
 Open **Command Prompt** or **PowerShell** and run:
 ```cmd
@@ -185,7 +186,7 @@ Copy that output and paste it as the value for `SECRET_KEY` in your `.env` file:
 SECRET_KEY=3f8a2c1e9b4d7e6f0a5c2b8d1e4f7a3c9b6d2e5f8a1c4b7
 ```
 
-> ⚠️ **Important:** Never share your `SECRET_KEY` with anyone. Never commit your `.env` file to Git.
+> ⚠️ **Security Tip:** Never share your `SECRET_KEY` with anyone. Never commit your `.env` file to Git.
 
 Save and close the file.
 
