@@ -25,6 +25,7 @@ A complete step-by-step guide to set up and use the **Shopify Local Exporter** a
 Before you begin, make sure you have:
 
 - ✅ **Python 3.9 or higher** installed — See `PYTHON_INSTALLATION_GUIDE.md` if not installed
+- ✅ **Git** installed — See `GIT_INSTALLATION_GUIDE.md` if not installed
 - ✅ **Shopify Store credentials** (Store URL, API Key, API Secret)
 - ✅ A text editor (TextEdit, VS Code, nano, etc.)
 
@@ -36,19 +37,35 @@ Output should be `Python 3.9.x` or higher.
 
 > **Important:** On macOS, always use `python3` and `pip3` instead of `python` and `pip`.
 
+Verify Git:
+```bash
+git --version
+```
+Output should be `git version 2.x.x` or higher. If not installed, see `GIT_INSTALLATION_GUIDE.md`.
+
 ---
 
 ## 2. Download the Project
 
-If you received the project as a ZIP file:
-1. Double-click the ZIP file to extract it.
-2. Move the extracted `shopify_exporter` folder to a convenient location (e.g., your Desktop or Home folder).
+### Option A — Using Git (Recommended)
 
-If using Git:
+> 💡 **Git not installed?** See `GIT_INSTALLATION_GUIDE.md` for step-by-step installation instructions.
+
 ```bash
-git clone <repository-url>
+git clone https://github.com/pravin-python/shopify_exporter.git
 cd shopify_exporter
 ```
+
+### Option B — Download ZIP (Without Git)
+
+If you don't want to install Git, you can download the project as a ZIP file:
+
+1. Open your browser and go to: **[https://github.com/pravin-python/shopify_exporter](https://github.com/pravin-python/shopify_exporter)**
+2. Click the green **"<> Code"** button → Click **"Download ZIP"**.
+3. Double-click the downloaded ZIP file to extract it.
+4. Move the extracted folder to a convenient location (e.g., your Desktop or Home folder).
+
+> ⚠️ **Note:** With the ZIP method, you won't be able to use `git pull` for future updates. We recommend installing Git for the best experience.
 
 ---
 
